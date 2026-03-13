@@ -112,7 +112,7 @@ export class YahooFinanceClient {
     this.alternativeEndpoints = new Map();
     this.fallbackCache = new Map();
     this.initialized = false;
-    this.yahooFinanceInstance = new YahooFinance();
+    this.yahooFinanceInstance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
     this.warnings = [];
 
     this.rateLimiter.setCache({
@@ -652,15 +652,21 @@ export class YahooFinanceClient {
     const quote = result as Partial<QuoteResult>;
     const warnings: DataWarning[] = [];
 
-    // Graceful degradation: initialize price object if missing
+    // Graceful degradation: if price object is missing, the API may return a flat structure (v3)
     if (quote.price === undefined) {
-      quote.price = {} as PriceData;
-      warnings.push({
-        field: 'price',
-        severity: 'warning',
-        message: 'Price object missing - initialized with empty structure',
-        timestamp: new Date()
-      });
+      const flat = result as Record<string, unknown>;
+      if (flat['regularMarketPrice'] !== undefined) {
+        // yahoo-finance2 v3 returns flat objects — use result itself as price data
+        quote.price = result as PriceData;
+      } else {
+        quote.price = {} as PriceData;
+        warnings.push({
+          field: 'price',
+          severity: 'warning',
+          message: 'Price object missing - initialized with empty structure',
+          timestamp: new Date()
+        });
+      }
     }
 
     // Fill in missing critical fields with null instead of throwing errors

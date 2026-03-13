@@ -91,3 +91,7 @@ master-prompt.md
 
 # Trae IDE folder
 .trae/
+
+# Ai
+.claude/
+CLAUDE.md
