@@ -22,8 +22,8 @@ async function main(): Promise<void> {
   }
 
   const config = loadConfig();
-  const host = process.env.YF_MCP_HOST || '127.0.0.1';
-  const port = parsePort(process.env.YF_MCP_PORT, 3333);
+  const host = process.env.YF_MCP_HOST || '0.0.0.0';
+  const port = parsePort(process.env.YF_MCP_PORT || process.env.PORT, 3333);
   const path = process.env.YF_MCP_PATH || '/mcp';
 
   // Stateless transport keeps things simple for local desktop usage.
