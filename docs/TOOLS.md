@@ -1,6 +1,6 @@
 # Tools Reference
 
-Complete documentation for all MCP tools available in the Yahoo Finance MCP Server.
+Complete documentation for all MCP tools available in FinMCP.
 
 ## Table of Contents
 

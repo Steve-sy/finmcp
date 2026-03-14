@@ -1,6 +1,6 @@
 # Architecture
 
-Deep dive into the Yahoo Finance MCP Server's architecture, resilience patterns, and data quality engine.
+Deep dive into FinMCP's architecture, resilience patterns, and data quality engine.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ Deep dive into the Yahoo Finance MCP Server's architecture, resilience patterns,
 
 ## Overview
 
-The Yahoo Finance MCP Server is built with a layered architecture designed for production-grade resilience and data quality:
+FinMCP is built with a layered architecture designed for production-grade resilience and data quality:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -542,7 +542,9 @@ src/
     ├── MCP server setup
     ├── Tool registration
     ├── Graceful shutdown
-    └── Metrics endpoint
+    └── Lifecycle + stats
+
+src/http.ts                  # Streaming HTTP entry point (MCP over Streamable HTTP + /health)
 ```
 
 ---

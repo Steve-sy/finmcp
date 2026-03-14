@@ -175,7 +175,7 @@
 
   "serverInfo": {
     "_comment": "MCP Server information",
-    "name": "y-finance-mcp-server",
+    "name": "finmcp-server",
     "_comment_name": "Server name identifier",
     "version": "1.0.0",
     "_comment_version": "Server version following semantic versioning",

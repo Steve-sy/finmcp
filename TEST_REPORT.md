@@ -303,12 +303,12 @@ Unable to validate due to API parameter issues or test setup problems
 
 1. **Update Financial Statement Tools**
    - Migrate from `balanceSheetHistory` to `fundamentalsTimeSeries`
-   - Update [financials.ts](file:///d:/test_mcp/y-finance-mcp/src/tools/financials.ts) implementation
+   - Update [financials.ts](file:///d:/test_mcp/finmcp/src/tools/financials.ts) implementation
    - Test with real Yahoo Finance API
 
 2. **Fix News and Options Parameters**
-   - Review [news.ts](file:///d:/test_mcp/y-finance-mcp/src/tools/news.ts) parameters
-   - Review [options.ts](file:///d:/test_mcp/y-finance-mcp/src/tools/options.ts) parameters
+   - Review [news.ts](file:///d:/test_mcp/finmcp/src/tools/news.ts) parameters
+   - Review [options.ts](file:///d:/test_mcp/finmcp/src/tools/options.ts) parameters
    - Check yahoo-finance2 documentation for current API format
 
 3. **Investigate Holders Endpoint**

@@ -5,7 +5,7 @@ Production-grade financial data infrastructure for AI assistants with enterprise
 ## Installation
 
 ```bash
-npm install -g yfnhanced-mcp
+npm install -g finmcp
 ```
 
 ## Quick Start
@@ -13,7 +13,7 @@ npm install -g yfnhanced-mcp
 ### Start Server
 
 ```bash
-yfnhanced-mcp
+finmcp
 ```
 
 ### Claude Desktop Integration
@@ -23,8 +23,8 @@ Add to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "yfnhanced": {
-      "command": "yfnhanced-mcp"
+    "finmcp": {
+      "command": "finmcp"
     }
   }
 }
@@ -37,8 +37,8 @@ Add to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "yfnhanced": {
-      "command": "yfnhanced-mcp"
+    "finmcp": {
+      "command": "finmcp"
     }
   }
 }
@@ -83,14 +83,14 @@ Add to your `claude_desktop_config.json`:
 
 For complete documentation including configuration, usage examples, architecture details, and best practices:
 
-**[View Full Documentation on GitHub](https://github.com/kanishka-namdeo/yfnhanced-mcp)**
+**[View Full Documentation on GitHub](https://github.com/Steve-sy/finmcp)**
 
 Documentation includes:
-- [Complete Tool Reference](https://github.com/kanishka-namdeo/yfnhanced-mcp/blob/main/docs/TOOLS.md)
-- [Usage Guide with Examples](https://github.com/kanishka-namdeo/yfnhanced-mcp/blob/main/docs/USAGE_GUIDE.md)
-- [Configuration Guide](https://github.com/kanishka-namdeo/yfnhanced-mcp/blob/main/docs/CONFIGURATION.md)
-- [Architecture Details](https://github.com/kanishka-namdeo/yfnhanced-mcp/blob/main/docs/ARCHITECTURE.md)
-- [Data Verification Status](https://github.com/kanishka-namdeo/yfnhanced-mcp/blob/main/docs/DATA_VERIFICATION.md)
+- [Complete Tool Reference](https://github.com/Steve-sy/finmcp/blob/main/docs/TOOLS.md)
+- [Usage Guide with Examples](https://github.com/Steve-sy/finmcp/blob/main/docs/USAGE_GUIDE.md)
+- [Configuration Guide](https://github.com/Steve-sy/finmcp/blob/main/docs/CONFIGURATION.md)
+- [Architecture Details](https://github.com/Steve-sy/finmcp/blob/main/docs/ARCHITECTURE.md)
+- [Data Verification Status](https://github.com/Steve-sy/finmcp/blob/main/docs/DATA_VERIFICATION.md)
 
 ## Configuration
 
@@ -114,7 +114,7 @@ Create a `config.json` file:
 }
 ```
 
-For detailed configuration options, see [Configuration Guide](https://github.com/kanishka-namdeo/yfnhanced-mcp/blob/main/docs/CONFIGURATION.md).
+For detailed configuration options, see [Configuration Guide](https://github.com/Steve-sy/finmcp/blob/main/docs/CONFIGURATION.md).
 
 ## Performance
 
@@ -132,7 +132,7 @@ MIT
 
 ## Links
 
-- [GitHub Repository](https://github.com/kanishka-namdeo/yfnhanced-mcp)
-- [npm Package](https://www.npmjs.com/package/yfnhanced-mcp)
+- [GitHub Repository](https://github.com/Steve-sy/finmcp)
+- [npm Package](https://www.npmjs.com/package/finmcp)
 - [MCP Protocol](https://modelcontextprotocol.io/)
-- [Report Issues](https://github.com/kanishka-namdeo/yfnhanced-mcp/issues)
+- [Report Issues](https://github.com/Steve-sy/finmcp/issues)

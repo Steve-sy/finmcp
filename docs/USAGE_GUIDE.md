@@ -1,6 +1,6 @@
 # Usage Guide
 
-Practical guide to using Yahoo Finance MCP Server in your applications.
+Practical guide to using FinMCP in your applications.
 
 ## Table of Contents
 
@@ -25,8 +25,8 @@ Practical guide to using Yahoo Finance MCP Server in your applications.
 
 ```bash
 # Clone repository
-git clone https://github.com/kanishka-namdeo/yfnhanced-mcp.git
-cd yfnhanced-mcp
+git clone https://github.com/Steve-sy/finmcp.git
+cd finmcp
 
 # Install dependencies
 npm install
@@ -45,10 +45,10 @@ Add to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "yfnhanced": {
+    "finmcp": {
       "command": "node",
-      "args": ["D:\\path\\to\\yfnhanced-mcp\\dist\\index.js"],
-      "cwd": "D:\\path\\to\\yfnhanced-mcp"
+      "args": ["D:\\path\\to\\finmcp\\dist\\index.js"],
+      "cwd": "D:\\path\\to\\finmcp"
     }
   }
 }
@@ -638,7 +638,7 @@ npm run test:coverage
 - [DATA_VERIFICATION.md](DATA_VERIFICATION.md) - Data verification status
 
 **4. Report Issues**
-- [Issue Tracker](https://github.com/kanishka-namdeo/yfnhanced-mcp/issues)
+- [Issue Tracker](https://github.com/Steve-sy/finmcp/issues)
 - Include logs, configuration, and reproduction steps
 
 ---

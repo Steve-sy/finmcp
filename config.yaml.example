@@ -283,7 +283,7 @@ logging:
 # MCP Server information
 serverInfo:
   # Server name identifier
-  name: y-finance-mcp-server
+  name: finmcp-server
 
   # Server version following semantic versioning
   version: 1.0.0

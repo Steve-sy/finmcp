@@ -27,15 +27,15 @@ Transforms unreliable financial APIs into dependable data sources with enterpris
 **Via npm (Recommended):**
 
 ```bash
-npm install -g yfnhanced-mcp
+npm install -g finmcp
 ```
 
 **From source:**
 
 ```bash
 # Clone and install
-git clone https://github.com/kanishka-namdeo/yfnhanced-mcp.git
-cd yfnhanced-mcp
+git clone https://github.com/Steve-sy/finmcp.git
+cd finmcp
 npm install
 
 # Build TypeScript
@@ -46,7 +46,7 @@ npm run build
 
 ```bash
 # If installed globally via npm
-yfnhanced-mcp
+finmcp
 
 # Or if running from source
 npm start
@@ -59,8 +59,8 @@ Add to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "yfnhanced": {
-      "command": "yfnhanced-mcp"
+    "finmcp": {
+      "command": "finmcp"
     }
   }
 }
@@ -71,10 +71,10 @@ Or if running from source:
 ```json
 {
   "mcpServers": {
-    "yfnhanced": {
+    "finmcp": {
       "command": "node",
-      "args": ["absolute:\\path\\to\\yfnhanced-mcp\\dist\\index.js"],
-      "cwd": "absolute:\\path\\to\\yfnhanced-mcp"
+      "args": ["absolute:\\path\\to\\finmcp\\dist\\index.js"],
+      "cwd": "absolute:\\path\\to\\finmcp"
     }
   }
 }
@@ -89,8 +89,8 @@ Add to Cursor's MCP settings:
 ```json
 {
   "mcpServers": {
-    "yfnhanced": {
-      "command": "yfnhanced-mcp"
+    "finmcp": {
+      "command": "finmcp"
     }
   }
 }
@@ -103,8 +103,8 @@ Add to Cline's MCP configuration:
 ```json
 {
   "mcpServers": {
-    "yfnhanced": {
-      "command": "yfnhanced-mcp"
+    "finmcp": {
+      "command": "finmcp"
     }
   }
 }
@@ -123,7 +123,7 @@ const client = new Client({
 });
 
 await client.connect({
-  command: 'yfnhanced-mcp',
+  command: 'finmcp',
 });
 
 // Use financial data tools
@@ -334,7 +334,7 @@ MIT
 - [Yahoo Finance](https://finance.yahoo.com/)
 - [MCP Protocol Documentation](https://modelcontextprotocol.io/)
 - [yahoo-finance2 Library](https://github.com/gadicc/yahoo-finance2)
-- [Issue Tracker](https://github.com/kanishka-namdeo/yfnhanced-mcp/issues)
+- [Issue Tracker](https://github.com/Steve-sy/finmcp/issues)
 
 ---
 

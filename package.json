@@ -1,12 +1,12 @@
 {
-  "name": "yfnhanced-mcp",
+  "name": "finmcp",
   "version": "1.0.0",
-  "description": "Yahoo Finance MCP Server - A Model Context Protocol server for financial data with enterprise-grade resilience, circuit breaker, rate limiting, and data quality validation",
+  "description": "FinMCP - Yahoo Finance MCP server with resilience middleware (circuit breaker, rate limiting, retries, caching) and data quality validation",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "y-finance-mcp": "./dist/index.js"
+    "finmcp": "./dist/index.js"
   },
   "files": [
     "dist",
@@ -42,15 +42,15 @@
     "api-resilience",
     "data-quality"
   ],
-  "author": "Your Name <your.email@example.com>",
+  "author": "FinMCP contributors",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kanishka-namdeo/yfnhanced-mcp.git"
+    "url": "https://github.com/Steve-sy/finmcp.git"
   },
-  "homepage": "https://github.com/kanishka-namdeo/yfnhanced-mcp#readme",
+  "homepage": "https://github.com/Steve-sy/finmcp#readme",
   "bugs": {
-    "url": "https://github.com/kanishka-namdeo/yfnhanced-mcp/issues"
+    "url": "https://github.com/Steve-sy/finmcp/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",

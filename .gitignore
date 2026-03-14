@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 jspm_packages/
+.npm-cache/
 
 # Package manager locks (choose which one to keep based on your package manager)
 # package-lock.json  # Uncomment if using npm

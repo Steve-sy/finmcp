@@ -559,7 +559,7 @@ Server information defines the identity and versioning of the MCP server.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `name` | string | 'y-finance-mcp-server' | Server name identifier |
+| `name` | string | 'finmcp-server' | Server name identifier |
 | `version` | string | '1.0.0' | Server version (semantic versioning) |
 | `protocolVersion` | string | '1.0' | MCP protocol version supported |
 
@@ -568,7 +568,7 @@ Server information defines the identity and versioning of the MCP server.
 ```json
 {
   "serverInfo": {
-    "name": "y-finance-mcp-server",
+    "name": "finmcp-server",
     "version": "1.0.0",
     "protocolVersion": "1.0"
   }
@@ -1011,7 +1011,7 @@ For production with optimal performance and reliability:
     "destination": "console"
   },
   "serverInfo": {
-    "name": "y-finance-mcp-server",
+    "name": "finmcp-server",
     "version": "1.0.0",
     "protocolVersion": "1.0"
   },
@@ -1143,7 +1143,7 @@ logging:
   destination: console
 
 serverInfo:
-  name: y-finance-mcp-server
+  name: finmcp-server
   version: 1.0.0
   protocolVersion: 1.0
 
