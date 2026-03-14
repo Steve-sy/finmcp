@@ -91,7 +91,7 @@ FinMCP can be deployed to the cloud/docker so you and your friends can connect f
 2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub repo → select your repo
 3. Railway auto-detects the Dockerfile and builds everything
 4. Go to **Settings → Networking → Generate Domain** to get your public HTTPS URL
-5. (Recommended) In Railway → **Variables**, add `YF_MCP_API_KEY` with a strong random value
+5. (Recommended Auth) In Railway → **Variables**, add `YF_MCP_API_KEY` with a strong random value to protect your project
 
 Your MCP endpoint will be:
 - **Without auth:** `https://your-app.up.railway.app/mcp`

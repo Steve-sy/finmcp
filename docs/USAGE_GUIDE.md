@@ -541,8 +541,9 @@ delete sanitized.apiKey;
 
 **3. Use Environment Variables**
 ```bash
-export API_KEY=your_api_key
-npm start
+# Optional: protect the public HTTP MCP endpoint (when using `npm run start:http`)
+export YF_MCP_API_KEY=your_api_key
+npm run start:http
 ```
 
 ---

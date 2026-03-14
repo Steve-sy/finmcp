@@ -80,7 +80,7 @@ async function main(): Promise<void> {
   });
 
   server.listen(port, host, () => {
-    console.error(`Yahoo Finance MCP (streaming HTTP) listening on http://${host}:${port}${path}`);
+    console.error(`FinMCP on Yahoo Finance (streaming HTTP) listening on http://${host}:${port}${path}`);
     console.error(`Config: ${JSON.stringify({ cacheTtlQuotes: config.cache.ttlQuotes }, null, 0)}`);
   });
 
@@ -109,4 +109,3 @@ if (process.argv[1] && process.argv[1].endsWith('http.js')) {
 }
 
 export { main };
-
