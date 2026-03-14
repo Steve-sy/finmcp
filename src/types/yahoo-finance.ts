@@ -396,7 +396,7 @@ export type AnalystOpinion = {
     strongSell: number;
   };
   currentOpinion: string;
-  targetPrice: number;
+  targetPrice: number | null;
   recommendationKey: string;
 };
 
@@ -420,7 +420,7 @@ export type AnalysisResult = {
       strongSell: number;
     };
     currentOpinion: string;
-    targetPrice: number;
+    targetPrice: number | null;
     recommendationKey: string;
   };
   recommendationTrend: {

@@ -196,8 +196,8 @@ export class AnalysisTools {
     const trendData = result.recommendationTrend;
     const earningsTrends = result.earningsTrend ?? [];
 
-    const currentRatings = this.extractCurrentRatings(opinion);
-    const targetPrice = this.extractTargetPrice(opinion);
+    const currentRatings = this.extractCurrentRatings(opinion, trendData);
+    const targetPrice = this.extractTargetPrice(opinion, (result as unknown as { financialData?: unknown }).financialData);
     const recommendationTrend = this.processRecommendationTrend(trendData, includeExpired);
 
     return {
@@ -208,7 +208,10 @@ export class AnalysisTools {
     };
   }
 
-  private extractCurrentRatings(opinion: AnalysisResult['analystOpinion']): AnalysisData['currentRatings'] {
+  private extractCurrentRatings(
+    opinion: AnalysisResult['analystOpinion'],
+    trendData: AnalysisResult['recommendationTrend']
+  ): AnalysisData['currentRatings'] {
     const ratings = {
       strongBuy: 0,
       buy: 0,
@@ -216,7 +219,7 @@ export class AnalysisTools {
       sell: 0,
       strongSell: 0,
       total: 0,
-      recommendation: 'neutral' as const
+      recommendation: 'neutral' as AnalysisData['currentRatings']['recommendation']
     };
 
     if (opinion?.currentRatings) {
@@ -228,6 +231,18 @@ export class AnalysisTools {
       ratings.total = ratings.strongBuy + ratings.buy + ratings.hold + ratings.sell + ratings.strongSell;
     }
 
+    // If opinion didn't provide anything, derive from the most recent recommendation trend.
+    if (ratings.total === 0 && trendData?.trend && trendData.trend.length > 0) {
+      const latest = trendData.trend[0];
+      ratings.strongBuy = latest.strongBuy ?? 0;
+      ratings.buy = latest.buy ?? 0;
+      ratings.hold = latest.hold ?? 0;
+      ratings.sell = latest.sell ?? 0;
+      ratings.strongSell = latest.strongSell ?? 0;
+      ratings.total = ratings.strongBuy + ratings.buy + ratings.hold + ratings.sell + ratings.strongSell;
+    }
+
+    ratings.recommendation = this.determineRecommendation(ratings);
     return ratings;
   }
 
@@ -262,13 +277,33 @@ export class AnalysisTools {
     return 'hold';
   }
 
-  private extractTargetPrice(opinion: AnalysisResult['analystOpinion']): TargetPrice {
+  private extractTargetPrice(opinion: AnalysisResult['analystOpinion'], financialData: unknown): TargetPrice {
+    const fd = (financialData ?? {}) as Record<string, unknown>;
+    const numAnalysts =
+      (fd.numberOfAnalystOpinions as any)?.raw ?? fd.numberOfAnalystOpinions ?? fd.numberOfAnalysts;
+    let numberOfAnalysts = typeof numAnalysts === 'number' ? numAnalysts : 0;
+
+    const read = (k: string): number | null => {
+      const v = (fd as any)[k];
+      const raw = v?.raw ?? v;
+      return typeof raw === 'number' ? raw : null;
+    };
+
     return {
-      targetHigh: opinion?.targetPrice ?? null,
-      targetLow: opinion?.targetPrice ?? null,
-      targetMean: opinion?.targetPrice ?? null,
-      targetMedian: opinion?.targetPrice ?? null,
-      numberOfAnalysts: 0
+      targetHigh: read('targetHighPrice'),
+      targetLow: read('targetLowPrice'),
+      targetMean: read('targetMeanPrice') ?? (opinion?.targetPrice ?? null),
+      targetMedian: read('targetMedianPrice'),
+      // If Yahoo doesn't provide the target-price analyst count, approximate using ratings count.
+      numberOfAnalysts: numberOfAnalysts > 0
+        ? numberOfAnalysts
+        : (
+          (opinion?.currentRatings?.strongBuy ?? 0) +
+          (opinion?.currentRatings?.buy ?? 0) +
+          (opinion?.currentRatings?.hold ?? 0) +
+          (opinion?.currentRatings?.sell ?? 0) +
+          (opinion?.currentRatings?.strongSell ?? 0)
+        )
     };
   }
 

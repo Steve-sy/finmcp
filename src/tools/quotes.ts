@@ -315,6 +315,7 @@ export class QuoteTools {
     }
 
     const flatData = this.flattenSummaryData(data);
+    this.addQuoteSummaryAliases(symbol, flatData);
     const completenessScore = this.qualityReporter.calculateCompleteness(flatData);
     const completenessPercentage = Math.round(completenessScore);
     const missingFields = this.identifyMissingFields(flatData);
@@ -345,7 +346,7 @@ export class QuoteTools {
 
   private async fetchQuoteSummary(symbol: string, modules: string[]): Promise<Record<string, unknown>> {
     try {
-      const result = await this.yahooClient.getSummaryProfile(symbol, { validate: true });
+      const result = await this.yahooClient.getQuoteSummary(symbol, modules, { validate: true });
       return this.extractSummaryModules(result, modules);
     } catch {
       const quote = await this.yahooClient.getQuote(symbol);
@@ -448,6 +449,43 @@ export class QuoteTools {
     }
 
     return flat;
+  }
+
+  private addQuoteSummaryAliases(symbol: string, data: Record<string, unknown>): void {
+    // DataQualityReporter and missing field checks look for canonical top-level fields.
+    // quoteSummary is module-keyed, so surface common fields from known module locations.
+    if (data['symbol'] === undefined) {
+      data['symbol'] = symbol;
+    }
+
+    const pickNumber = (keys: string[]): number | undefined => {
+      for (const k of keys) {
+        const v = data[k];
+        if (typeof v === 'number') return v;
+        if (typeof v === 'object' && v !== null && 'raw' in (v as any) && typeof (v as any).raw === 'number') {
+          return (v as any).raw;
+        }
+      }
+      return undefined;
+    };
+
+    const aliases: Array<{ target: string; sources: string[] }> = [
+      { target: 'regularMarketPrice', sources: ['price.regularMarketPrice', 'financialData.currentPrice'] },
+      { target: 'regularMarketChange', sources: ['price.regularMarketChange'] },
+      { target: 'regularMarketChangePercent', sources: ['price.regularMarketChangePercent'] },
+      { target: 'regularMarketVolume', sources: ['price.regularMarketVolume', 'summaryDetail.regularMarketVolume', 'summaryDetail.volume'] },
+      // Some quality checks look for a generic "volume" field.
+      { target: 'volume', sources: ['summaryDetail.volume', 'summaryDetail.regularMarketVolume', 'price.regularMarketVolume', 'regularMarketVolume'] },
+      { target: 'marketCap', sources: ['summaryDetail.marketCap', 'price.marketCap'] },
+      { target: 'regularMarketTime', sources: ['price.regularMarketTime'] }
+    ];
+
+    for (const { target, sources } of aliases) {
+      if (data[target] === undefined || data[target] === null) {
+        const v = pickNumber(sources);
+        if (v !== undefined) data[target] = v;
+      }
+    }
   }
 
   private createBatches<T>(items: T[], batchSize: number): T[][] {

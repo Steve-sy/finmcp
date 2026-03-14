@@ -226,7 +226,7 @@ class SummaryTools {
 
   async getTrendingSymbols(input: unknown): Promise<{ trending: TrendingResult; meta: TrendingMeta }> {
     const parsed = TrendingInputSchema.parse(input);
-    const { region, limit } = parsed;
+    const { region, limit, includeVolume } = parsed;
 
     if (region) {
       InputValidator.validateString(region, 'region');
@@ -236,7 +236,7 @@ class SummaryTools {
     const cacheKey = `trending:${region || 'US'}`;
 
     try {
-      const result = await this.fetchTrending(region || 'US', limit);
+      const result = await this.fetchTrending(region || 'US', limit, includeVolume === true);
 
       const dataAge = Date.now() - startTime;
       const warnings: string[] = [];
@@ -292,8 +292,8 @@ class SummaryTools {
 
       const dataAge = Date.now() - startTime;
 
-      if (result.finance.error) {
-        warnings.push(`Screener error: ${result.finance.error.description}`);
+      if (result && typeof result === 'object' && (result as any).finance?.error) {
+        warnings.push(`Screener error: ${(result as any).finance.error.description}`);
       }
 
       const quotes = result.finance.result?.[0]?.quotes || [];
@@ -309,66 +309,69 @@ class SummaryTools {
 
       return { screened: result, meta };
     } catch (error) {
-      throw new Error(`Failed to fetch screener results: ${error instanceof Error ? error.message : String(error)}`);
+      const err = error as any;
+      const details =
+        err && typeof err === 'object'
+          ? (err.stack ? String(err.stack) : JSON.stringify(err))
+          : String(err);
+      throw new Error(`Failed to fetch screener results: ${details}`);
     }
   }
 
-  private async fetchCryptoQuote(symbol: string, currency?: string): Promise<CryptoQuoteResult> {
-    const cryptoResult: CryptoQuoteResult = {
-      regularMarketPrice: 0,
-      regularMarketChange: 0,
-      regularMarketChangePercent: 0,
-      regularMarketPreviousClose: 0,
-      regularMarketOpen: 0,
-      regularMarketDayHigh: 0,
-      regularMarketDayLow: 0,
-      regularMarketVolume: 0,
-      marketCap: 0,
-      circulatingSupply: 0,
-      totalVolume24Hr: 0,
-      volumeAllCurrencies: 0,
-      fromCurrency: symbol.split('-')[0] || symbol,
-      toCurrency: currency || 'USD',
-      lastMarket: 'Yahoo Finance',
-      coinImageUrl: '',
-      quoteSourceName: 'Yahoo Finance',
-      quoteType: 'CRYPTOCURRENCY',
-      symbol,
-      shortName: symbol,
-      longName: symbol
-    };
+  private normalizeForexPair(pair: string): string {
+    const trimmed = pair.trim();
+    if (trimmed.toUpperCase().includes('=X')) {
+      return trimmed.toUpperCase();
+    }
 
-    return cryptoResult;
+    // Common formats:
+    // - EURUSD -> EURUSD=X
+    // - EUR/USD -> EURUSD=X
+    const compact = trimmed.replace('/', '');
+    if (/^[A-Za-z]{6}$/.test(compact)) {
+      return `${compact.toUpperCase()}=X`;
+    }
+
+    return trimmed;
+  }
+
+  private async fetchCryptoQuote(symbol: string, currency?: string): Promise<CryptoQuoteResult> {
+    // Fetch via the shared client so retries/rate-limit/cache apply consistently.
+    const requested = currency && symbol.includes('-') ? symbol.replace(/-[A-Za-z]+$/, `-${currency}`) : symbol;
+    const result = await this.client.getCryptoQuote([requested], { useCache: true });
+    return result[requested];
   }
 
   private async fetchForexQuote(pair: string): Promise<ForexQuoteResult> {
-    const forexResult: ForexQuoteResult = {
-      regularMarketPrice: 1,
-      regularMarketChange: 0,
-      regularMarketChangePercent: 0,
-      regularMarketPreviousClose: 1,
-      regularMarketOpen: 1,
-      regularMarketDayHigh: 1,
-      regularMarketDayLow: 1,
-      regularMarketVolume: 0,
-      fromCurrency: pair.substring(0, 3),
-      toCurrency: pair.substring(3, 6),
-      lastMarket: 'Yahoo Finance',
-      quoteSourceName: 'Yahoo Finance',
-      quoteType: 'CURRENCY',
-      symbol: pair,
-      shortName: pair,
-      longName: pair
-    };
-
-    return forexResult;
+    const normalized = this.normalizeForexPair(pair);
+    const result = await this.client.getForexQuote([normalized], { useCache: true });
+    return result[normalized];
   }
 
-  private async fetchTrending(region: string, limit?: number): Promise<TrendingResult> {
-    const result = await this.client.getTrending();
+  private async fetchTrending(region: string, limit?: number, includeVolume?: boolean): Promise<TrendingResult> {
+    const result = await this.client.getTrending({ region });
 
     if (limit && result.quotes.length > limit) {
       result.quotes = result.quotes.slice(0, limit);
+    }
+
+    if (includeVolume) {
+      // trendingSymbols frequently returns only { symbol }. Enrich via quote() to attach volume.
+      const symbols = result.quotes.map((q: any) => q?.symbol).filter((s: any) => typeof s === 'string') as string[];
+      if (symbols.length > 0) {
+        try {
+          const quoted = await this.client.getQuotes(symbols, { useCache: true });
+          for (const q of result.quotes as any[]) {
+            const sym = q?.symbol;
+            const price = sym ? (quoted as any)?.[sym]?.price ?? (quoted as any)?.[sym] : null;
+            if (price && typeof price.regularMarketVolume === 'number') {
+              q.regularMarketVolume = price.regularMarketVolume;
+            }
+          }
+        } catch {
+          // Best-effort enrichment
+        }
+      }
     }
 
     return result;

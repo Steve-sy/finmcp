@@ -3,9 +3,14 @@ import * as z from 'zod';
 export const NewsInputSchema = z.object({
   symbol: z.string().min(1).max(20),
   limit: z.number().int().min(1).max(50).optional(),
+  // Back-compat / convenience alias. Some clients use `count` instead of `limit`.
+  count: z.number().int().min(1).max(50).optional(),
   startDate: z.string().optional(),
   requireRelatedTickers: z.boolean().optional()
-});
+}).transform(({ count, limit, ...rest }) => ({
+  ...rest,
+  limit: limit ?? count
+}));
 
 export const NewsItemSchema = z.object({
   uuid: z.string(),

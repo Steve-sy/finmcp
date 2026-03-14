@@ -5,7 +5,8 @@ import { DataQualityReporter } from '../utils/data-completion.js';
 import type { OptionsResult, OptionsExpiration, PriceData } from '../types/yahoo-finance.js';
 import { InputValidator } from '../utils/security.js';
 
-const yahooFinance = new YahooFinance();
+// Prevent stdout notices (e.g. survey URLs) from corrupting the MCP JSON-RPC stream.
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 const OPTIONS_CACHE_TTL = 3600000;
 
 class OptionsToolCache {
@@ -140,7 +141,9 @@ function calculateGreeks(
   vega: number;
 } {
   const riskFreeRate = 0.05;
-  const sigma = impliedVolatility / 100;
+  // Yahoo Finance already returns impliedVolatility in decimal form (e.g., 0.49 = 49%).
+  // Black-Scholes needs decimal, so use as-is (do NOT divide by 100).
+  const sigma = impliedVolatility;
 
   return {
     delta: calculateDelta(spotPrice, strike, riskFreeRate, sigma, timeToExpiration, isCall),
@@ -191,7 +194,8 @@ function convertOptionContract(
   let theta: number | null = null;
   let vega: number | null = null;
 
-  if (includeGreeks && impliedVolatility !== null && lastPrice !== null && timeToExpiration > 0) {
+  // Greeks do not require lastPrice; only spot, strike, IV and time.
+  if (includeGreeks && impliedVolatility !== null && timeToExpiration > 0 && spotPrice > 0 && strike > 0) {
     const greeks = calculateGreeks(spotPrice, strike, impliedVolatility, timeToExpiration, isCall);
     delta = greeks.delta;
     gamma = greeks.gamma;
@@ -267,7 +271,19 @@ function convertOptionsExpiration(
     vega: number | null;
   }>;
 } {
-  const expirationDateRaw = typeof item.expirationDate === 'number' ? item.expirationDate : 0;
+  const normalizeEpochSeconds = (value: number): number => {
+    // Yahoo can return epoch seconds or epoch milliseconds depending on endpoint/version.
+    // If it's too large to be seconds, treat as ms.
+    return value > 10_000_000_000 ? Math.floor(value / 1000) : value;
+  };
+
+  // yahoo-finance2 options() returns `date` on each option group; `expirationDate` is a fallback.
+  const rawDateField = typeof item.expirationDate === 'number'
+    ? item.expirationDate
+    : typeof item.date === 'number'
+      ? item.date
+      : 0;
+  const expirationDateRaw = rawDateField > 0 ? normalizeEpochSeconds(rawDateField) : 0;
   const expirationDate = expirationDateRaw > 0 ? new Date(expirationDateRaw * 1000).toISOString().split('T')[0] : '';
   const timeToExpiration = expirationDateRaw > 0 ? (expirationDateRaw * 1000 - Date.now()) / (365 * 24 * 60 * 60 * 1000) : 0;
 
@@ -289,23 +305,54 @@ function convertOptionsExpiration(
 
 async function fetchOptions(symbol: string): Promise<OptionsResult> {
   try {
-    const result = await yahooFinance.quoteSummary(symbol, {
-      modules: ['optionChain' as unknown as never]
-    });
+    // Prefer yahoo-finance2's dedicated options() helper. quoteSummary("optionChain") is not
+    // consistently supported and can throw "quoteSummary called with invalid options."
+    // Important: call as a method on the instance (do not detach), otherwise `this` can be lost
+    // and yahoo-finance2 will throw (e.g. _moduleExec undefined).
+    const instance = yahooFinance as unknown as {
+      options?: (s: string, o?: { date?: Date }) => Promise<unknown>;
+    };
 
-    if (!result?.optionChain) {
+    if (typeof instance.options !== 'function') {
+      throw new YahooFinanceError(
+        `Options API not available in yahoo-finance2 for ${symbol}`,
+        YF_ERR_DATA_UNAVAILABLE,
+        null,
+        false,
+        false,
+        { symbol },
+        'Upgrade yahoo-finance2 or use HTTP mode with a different backend'
+      );
+    }
+
+    const result = await instance.options(symbol);
+    if (result === null || typeof result !== 'object') {
       throw new YahooFinanceError(
         `Options data not available for ${symbol}`,
         YF_ERR_DATA_INCOMPLETE,
         null,
         false,
         false,
-        { symbol },
+        { symbol, result },
         'Check if symbol has options trading available'
       );
     }
 
-    return result.optionChain as OptionsResult;
+    // yahoo-finance2 returns { quote, expirationDates, options } for options()
+    const normalized = result as any;
+    // Normalize epoch units for expirationDates and option.date to seconds.
+    const normalizeEpochSeconds = (value: number): number => (value > 10_000_000_000 ? Math.floor(value / 1000) : value);
+    if (Array.isArray(normalized.expirationDates)) {
+      normalized.expirationDates = normalized.expirationDates.map((d: any) => typeof d === 'number' ? normalizeEpochSeconds(d) : d);
+    }
+    if (Array.isArray(normalized.options)) {
+      normalized.options = normalized.options.map((opt: any) => ({
+        ...opt,
+        date: typeof opt?.date === 'number' ? normalizeEpochSeconds(opt.date) : opt?.date,
+        expirationDate: typeof opt?.expirationDate === 'number' ? normalizeEpochSeconds(opt.expirationDate) : opt?.expirationDate
+      }));
+    }
+    return normalized as OptionsResult;
   } catch (error) {
     if (error instanceof YahooFinanceError) {
       throw error;

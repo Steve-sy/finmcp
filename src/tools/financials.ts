@@ -129,10 +129,55 @@ function extractStringField(item: Record<string, unknown>, fieldName: string): s
   if (typeof field === 'string') {
     return field;
   }
+  // yahoo-finance2 v3 returns Date objects for date fields (e.g. fundamentalsTimeSeries).
+  if (field instanceof Date) {
+    return field.toISOString();
+  }
+  if (typeof field === 'number') {
+    // Some yahoo-finance2 responses return epoch seconds for dates.
+    return new Date(field * 1000).toISOString();
+  }
   if (typeof field === 'object' && field !== null && 'fmt' in field) {
     return String((field as { fmt: unknown }).fmt);
   }
+  if (typeof field === 'object' && field !== null && 'raw' in field) {
+    const raw = (field as { raw: unknown }).raw;
+    if (typeof raw === 'number') {
+      return new Date(raw * 1000).toISOString();
+    }
+  }
   return null;
+}
+
+function extractDateField(item: Record<string, unknown>): string | null {
+  // Yahoo payloads vary between modules; try a few common keys.
+  // 'date' is used by fundamentalsTimeSeries; 'endDate' by older quoteSummary modules.
+  const candidates = ['date', 'endDate', 'asOfDate', 'periodEnding'];
+  for (const key of candidates) {
+    const v = extractStringField(item, key);
+    if (v) {return v;}
+  }
+  return null;
+}
+
+function normalizeDateToYmd(value: string | null): string {
+  if (!value) {return '1970-01-01';}
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {return value;}
+  const d = new Date(value);
+  if (!Number.isFinite(d.getTime())) {
+    // Try epoch string
+    const asNum = Number(value);
+    if (Number.isFinite(asNum) && asNum > 0) {
+      const ms = asNum < 10_000_000_000 ? asNum * 1000 : asNum;
+      const dd = new Date(ms);
+      if (Number.isFinite(dd.getTime())) {
+        return dd.toISOString().split('T')[0];
+      }
+    }
+    return '1970-01-01';
+  }
+  return d.toISOString().split('T')[0];
 }
 
 function buildFieldAvailability(data: Record<string, number | null>, expectedFields: string[]): Record<string, boolean> {
@@ -144,58 +189,62 @@ function buildFieldAvailability(data: Record<string, number | null>, expectedFie
 }
 
 function convertBalanceSheetToStatementData(item: Record<string, unknown>): StatementData {
-  const endDateRaw = extractStringField(item, 'endDate');
-  const endDate = endDateRaw ? new Date(endDateRaw).toISOString().split('T')[0] : '';
+  const endDateRaw = extractDateField(item);
+  const endDate = normalizeDateToYmd(endDateRaw);
+  const startDate = endDate;
 
   const statement: StatementData = {
     period: 'annual',
-    startDate: '',
+    startDate,
     endDate,
+    // fundamentalsTimeSeries field names (with quoteSummary fallbacks)
     totalAssets: extractField(item, 'totalAssets'),
-    totalLiab: extractField(item, 'totalLiab'),
-    totalStockholderEquity: extractField(item, 'totalStockholderEquity'),
-    cash: extractField(item, 'cash'),
-    shortTermInvestments: extractField(item, 'shortTermInvestments'),
-    netReceivables: extractField(item, 'netReceivables'),
+    totalLiab: extractField(item, 'totalLiabilitiesNetMinorityInterest') ?? extractField(item, 'totalLiab'),
+    totalStockholderEquity: extractField(item, 'stockholdersEquity') ?? extractField(item, 'totalStockholderEquity'),
+    cash: extractField(item, 'cashAndCashEquivalents') ?? extractField(item, 'cash'),
+    shortTermInvestments: extractField(item, 'otherShortTermInvestments') ?? extractField(item, 'shortTermInvestments'),
+    netReceivables: extractField(item, 'receivables') ?? extractField(item, 'accountsReceivable') ?? extractField(item, 'netReceivables'),
     inventory: extractField(item, 'inventory'),
-    totalCurrentAssets: extractField(item, 'totalCurrentAssets'),
-    totalCurrentLiabilities: extractField(item, 'totalCurrentLiabilities'),
+    totalCurrentAssets: extractField(item, 'currentAssets') ?? extractField(item, 'totalCurrentAssets'),
+    totalCurrentLiabilities: extractField(item, 'currentLiabilities') ?? extractField(item, 'totalCurrentLiabilities'),
     longTermDebt: extractField(item, 'longTermDebt'),
-    propertyPlantEquipment: extractField(item, 'propertyPlantEquipment'),
-    goodWill: extractField(item, 'goodWill'),
-    intangibleAssets: extractField(item, 'intangibleAssets'),
+    propertyPlantEquipment: extractField(item, 'netPPE') ?? extractField(item, 'propertyPlantEquipment'),
+    goodWill: extractField(item, 'goodwill') ?? extractField(item, 'goodWill'),
+    intangibleAssets: extractField(item, 'otherIntangibleAssets') ?? extractField(item, 'intangibleAssets'),
     retainedEarnings: extractField(item, 'retainedEarnings'),
-    otherAssets: extractField(item, 'otherAssets'),
-    otherLiab: extractField(item, 'otherLiab')
+    otherAssets: extractField(item, 'otherNonCurrentAssets') ?? extractField(item, 'otherAssets'),
+    otherLiab: extractField(item, 'otherNonCurrentLiabilities') ?? extractField(item, 'otherLiab')
   };
 
   return statement;
 }
 
 function convertIncomeStatementToStatementData(item: Record<string, unknown>): StatementData {
-  const endDateRaw = extractStringField(item, 'endDate');
-  const endDate = endDateRaw ? new Date(endDateRaw).toISOString().split('T')[0] : '';
+  const endDateRaw = extractDateField(item);
+  const endDate = normalizeDateToYmd(endDateRaw);
+  const startDate = endDate;
 
   const statement: StatementData = {
     period: 'annual',
-    startDate: '',
+    startDate,
     endDate,
+    // fundamentalsTimeSeries field names (with quoteSummary fallbacks)
     totalRevenue: extractField(item, 'totalRevenue'),
-    costOfRevenue: extractField(item, 'costOfRevenue'),
+    costOfRevenue: extractField(item, 'costOfRevenue') ?? extractField(item, 'reconciledCostOfRevenue'),
     grossProfit: extractField(item, 'grossProfit'),
     operatingIncome: extractField(item, 'operatingIncome'),
-    ebitda: extractField(item, 'ebitda'),
+    ebitda: extractField(item, 'EBITDA') ?? extractField(item, 'ebitda'),
     netIncome: extractField(item, 'netIncome'),
-    epsBasic: extractField(item, 'epsBasic'),
-    epsDiluted: extractField(item, 'epsDiluted'),
+    epsBasic: extractField(item, 'basicEPS') ?? extractField(item, 'epsBasic'),
+    epsDiluted: extractField(item, 'dilutedEPS') ?? extractField(item, 'epsDiluted'),
     interestExpense: extractField(item, 'interestExpense'),
-    taxProvision: extractField(item, 'taxProvision'),
-    researchAndDevelopment: extractField(item, 'researchAndDevelopment'),
-    sellingGeneralAndAdministrative: extractField(item, 'sellingGeneralAndAdministrative'),
+    taxProvision: extractField(item, 'taxProvision') ?? extractField(item, 'incomeTaxExpense'),
+    researchAndDevelopment: extractField(item, 'researchAndDevelopment') ?? extractField(item, 'researchDevelopment'),
+    sellingGeneralAndAdministrative: extractField(item, 'sellingGeneralAndAdministration') ?? extractField(item, 'sellingGeneralAndAdministrative') ?? extractField(item, 'sellingGeneralAdministrative'),
     operatingExpense: extractField(item, 'operatingExpense'),
     otherOperatingExpenses: extractField(item, 'otherOperatingExpenses'),
-    nonRecurringEvents: extractField(item, 'nonRecurringEvents'),
-    nonOperatingInterestIncome: extractField(item, 'nonOperatingInterestIncome'),
+    nonRecurringEvents: null,
+    nonOperatingInterestIncome: extractField(item, 'netNonOperatingInterestIncomeExpense') ?? extractField(item, 'nonOperatingInterestIncome'),
     otherIncomeExpense: extractField(item, 'otherIncomeExpense')
   };
 
@@ -203,25 +252,27 @@ function convertIncomeStatementToStatementData(item: Record<string, unknown>): S
 }
 
 function convertCashFlowToStatementData(item: Record<string, unknown>): StatementData {
-  const endDateRaw = extractStringField(item, 'endDate');
-  const endDate = endDateRaw ? new Date(endDateRaw).toISOString().split('T')[0] : '';
+  const endDateRaw = extractDateField(item);
+  const endDate = normalizeDateToYmd(endDateRaw);
+  const startDate = endDate;
 
   const statement: StatementData = {
     period: 'annual',
-    startDate: '',
+    startDate,
     endDate,
-    totalCashFromOperatingActivities: extractField(item, 'totalCashFromOperatingActivities'),
-    capitalExpenditures: extractField(item, 'capitalExpenditures'),
-    totalCashFromFinancingActivities: extractField(item, 'totalCashFromFinancingActivities'),
-    totalCashFromInvestingActivities: extractField(item, 'totalCashFromInvestingActivities'),
-    depreciation: extractField(item, 'depreciation'),
-    dividendsPaid: extractField(item, 'dividendsPaid'),
-    stockRepurchases: extractField(item, 'stockRepurchases'),
-    changeInCash: extractField(item, 'changeInCash'),
+    // fundamentalsTimeSeries field names (with quoteSummary fallbacks)
+    totalCashFromOperatingActivities: extractField(item, 'operatingCashFlow') ?? extractField(item, 'cashFlowFromContinuingOperatingActivities') ?? extractField(item, 'totalCashFromOperatingActivities'),
+    capitalExpenditures: extractField(item, 'capitalExpenditure') ?? extractField(item, 'capitalExpenditures'),
+    totalCashFromFinancingActivities: extractField(item, 'financingCashFlow') ?? extractField(item, 'cashFlowFromContinuingFinancingActivities') ?? extractField(item, 'totalCashFromFinancingActivities'),
+    totalCashFromInvestingActivities: extractField(item, 'investingCashFlow') ?? extractField(item, 'cashFlowFromContinuingInvestingActivities') ?? extractField(item, 'totalCashFromInvestingActivities'),
+    depreciation: extractField(item, 'depreciationAndAmortization') ?? extractField(item, 'depreciation'),
+    dividendsPaid: extractField(item, 'cashDividendsPaid') ?? extractField(item, 'commonStockDividendPaid') ?? extractField(item, 'dividendsPaid'),
+    stockRepurchases: extractField(item, 'repurchaseOfCapitalStock') ?? extractField(item, 'commonStockPayments') ?? extractField(item, 'stockRepurchases'),
+    changeInCash: extractField(item, 'changesInCash') ?? extractField(item, 'changeInCash'),
     freeCashFlow: extractField(item, 'freeCashFlow'),
-    netBorrowings: extractField(item, 'netBorrowings'),
-    otherCashflowsFromInvestingActivities: extractField(item, 'otherCashflowsFromInvestingActivities'),
-    otherCashflowsFromFinancingActivities: extractField(item, 'otherCashflowsFromFinancingActivities'),
+    netBorrowings: extractField(item, 'netIssuancePaymentsOfDebt') ?? extractField(item, 'netBorrowings'),
+    otherCashflowsFromInvestingActivities: extractField(item, 'netOtherInvestingChanges') ?? extractField(item, 'otherCashflowsFromInvestingActivities'),
+    otherCashflowsFromFinancingActivities: extractField(item, 'netOtherFinancingCharges') ?? extractField(item, 'otherCashflowsFromFinancingActivities'),
     effectOfExchangeRateOnCash: extractField(item, 'effectOfExchangeRateOnCash')
   };
 
@@ -278,15 +329,31 @@ async function fetchBalanceSheet(
   frequency: 'annual' | 'quarterly' = 'annual'
 ): Promise<BalanceSheet> {
   try {
-    const yf = new YahooFinance();
-    // Use a date far in the past to get all available historical data
-    const result = await yf.fundamentalsTimeSeries(symbol, {
-      module: 'balance-sheet',
-      type: frequency,
-      period1: new Date(2000, 0, 1) // January 1, 2000
-    });
+    const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
-    if (!result || result.length === 0) {
+    // quoteSummary balanceSheetHistory stopped returning financial data in Nov 2024.
+    // Use fundamentalsTimeSeries instead.
+    const period1 = new Date();
+    period1.setFullYear(period1.getFullYear() - 6);
+    let raw: unknown;
+    try {
+      raw = await (yf as any).fundamentalsTimeSeries(symbol, { module: 'balance-sheet', type: frequency, period1 });
+    } catch (err) {
+      // FailedYahooValidationError: use the partial .result (some entries may have TYPE: 'UNKNOWN')
+      if (err instanceof Error && err.constructor.name === 'FailedYahooValidationError') {
+        raw = (err as Error & { result: unknown }).result;
+      } else {
+        throw err;
+      }
+    }
+    // Filter out UNKNOWN entries and sort newest-first so slice(0, limit) returns recent data.
+    const statements = Array.isArray(raw)
+      ? (raw as any[])
+          .filter((e) => e?.TYPE === 'BALANCE_SHEET' || (e?.TYPE !== 'CASH_FLOW' && e?.TYPE !== 'FINANCIALS' && e?.totalAssets !== undefined))
+          .sort((a, b) => (b.date instanceof Date ? b.date.getTime() : b.date) - (a.date instanceof Date ? a.date.getTime() : a.date))
+      : [];
+
+    if (!Array.isArray(statements) || statements.length === 0) {
       throw new YahooFinanceError(
         `Balance sheet data not available for ${symbol}`,
         YF_ERR_DATA_INCOMPLETE,
@@ -298,44 +365,11 @@ async function fetchBalanceSheet(
       );
     }
 
-    // Convert fundamentalsTimeSeries format to legacy BalanceSheet format
-    const bsData: BalanceSheet = {
+    return {
       maxAge: 0,
-      annual: [],
-      quarterly: []
-    };
-
-    const dataArray = frequency === 'annual' ? bsData.annual : bsData.quarterly;
-
-    // Cast result to BalanceSheet type
-    for (const item of result as any) {
-      const periodData: Record<string, unknown> = {
-        endDate: {
-          fmt: item.date instanceof Date ? item.date.toISOString().split('T')[0] : '',
-          raw: item.date instanceof Date ? item.date.getTime() / 1000 : 0
-        },
-        totalAssets: item.totalAssets ? { fmt: item.totalAssets.toString(), raw: item.totalAssets } : undefined,
-        totalLiab: item.totalLiabilities ? { fmt: item.totalLiabilities.toString(), raw: item.totalLiabilities } : undefined,
-        totalStockholderEquity: item.stockholdersEquity ? { fmt: item.stockholdersEquity.toString(), raw: item.stockholdersEquity } : undefined,
-        cash: item.cashAndCashEquivalents ? { fmt: item.cashAndCashEquivalents.toString(), raw: item.cashAndCashEquivalents } : undefined,
-        shortTermInvestments: item.cashCashEquivalentsAndShortTermInvestments ? { fmt: item.cashCashEquivalentsAndShortTermInvestments.toString(), raw: item.cashCashEquivalentsAndShortTermInvestments } : undefined,
-        netReceivables: item.receivables ? { fmt: item.receivables.toString(), raw: item.receivables } : undefined,
-        inventory: item.inventory ? { fmt: item.inventory.toString(), raw: item.inventory } : undefined,
-        totalCurrentAssets: item.currentAssets ? { fmt: item.currentAssets.toString(), raw: item.currentAssets } : undefined,
-        totalCurrentLiabilities: item.currentLiabilities ? { fmt: item.currentLiabilities.toString(), raw: item.currentLiabilities } : undefined,
-        longTermDebt: item.longTermDebt ? { fmt: item.longTermDebt.toString(), raw: item.longTermDebt } : undefined,
-        propertyPlantEquipment: item.netPPE ? { fmt: item.netPPE.toString(), raw: item.netPPE } : undefined,
-        goodWill: item.goodwill ? { fmt: item.goodwill.toString(), raw: item.goodwill } : undefined,
-        intangibleAssets: item.otherIntangibleAssets ? { fmt: item.otherIntangibleAssets.toString(), raw: item.otherIntangibleAssets } : undefined,
-        retainedEarnings: item.retainedEarnings ? { fmt: item.retainedEarnings.toString(), raw: item.retainedEarnings } : undefined,
-        otherAssets: item.otherAssets ? { fmt: item.otherAssets.toString(), raw: item.otherAssets } : undefined,
-        otherLiab: item.otherLiabilities ? { fmt: item.otherLiabilities.toString(), raw: item.otherLiabilities } : undefined
-      };
-
-      dataArray.push(periodData as any);
-    }
-
-    return bsData;
+      annual: frequency === 'annual' ? (statements as any[]) : [],
+      quarterly: frequency === 'quarterly' ? (statements as any[]) : []
+    } as BalanceSheet;
   } catch (error) {
     if (error instanceof YahooFinanceError) {
       throw error;
@@ -357,15 +391,29 @@ async function fetchIncomeStatement(
   frequency: 'annual' | 'quarterly' = 'annual'
 ): Promise<IncomeStatement> {
   try {
-    const yf = new YahooFinance();
-    // Use a date far in past to get all available historical data
-    const result = await yf.fundamentalsTimeSeries(symbol, {
-      module: 'financials',
-      type: frequency,
-      period1: new Date(2000, 0, 1) // January 1, 2000
-    });
+    const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
-    if (!result || result.length === 0) {
+    // quoteSummary incomeStatementHistory stopped returning most fields in Nov 2024.
+    // Use fundamentalsTimeSeries instead.
+    const period1 = new Date();
+    period1.setFullYear(period1.getFullYear() - 6);
+    let raw: unknown;
+    try {
+      raw = await (yf as any).fundamentalsTimeSeries(symbol, { module: 'financials', type: frequency, period1 });
+    } catch (err) {
+      if (err instanceof Error && err.constructor.name === 'FailedYahooValidationError') {
+        raw = (err as Error & { result: unknown }).result;
+      } else {
+        throw err;
+      }
+    }
+    const statements = Array.isArray(raw)
+      ? (raw as any[])
+          .filter((e) => e?.TYPE === 'FINANCIALS' || e?.totalRevenue !== undefined)
+          .sort((a, b) => (b.date instanceof Date ? b.date.getTime() : b.date) - (a.date instanceof Date ? a.date.getTime() : a.date))
+      : [];
+
+    if (!Array.isArray(statements) || statements.length === 0) {
       throw new YahooFinanceError(
         `Income statement data not available for ${symbol}`,
         YF_ERR_DATA_INCOMPLETE,
@@ -377,45 +425,11 @@ async function fetchIncomeStatement(
       );
     }
 
-    // Convert fundamentalsTimeSeries format to legacy IncomeStatement format
-    const isData: IncomeStatement = {
+    return {
       maxAge: 0,
-      annual: [],
-      quarterly: []
-    };
-
-    const dataArray = frequency === 'annual' ? isData.annual : isData.quarterly;
-
-    // Cast result to Financials type
-    for (const item of result as any) {
-      const periodData: Record<string, unknown> = {
-        endDate: {
-          fmt: item.date instanceof Date ? item.date.toISOString().split('T')[0] : '',
-          raw: item.date instanceof Date ? item.date.getTime() / 1000 : 0
-        },
-        totalRevenue: item.totalRevenue ? { fmt: item.totalRevenue.toString(), raw: item.totalRevenue } : undefined,
-        costOfRevenue: item.costOfRevenue ? { fmt: item.costOfRevenue.toString(), raw: item.costOfRevenue } : undefined,
-        grossProfit: item.grossProfit ? { fmt: item.grossProfit.toString(), raw: item.grossProfit } : undefined,
-        operatingIncome: item.operatingIncome ? { fmt: item.operatingIncome.toString(), raw: item.operatingIncome } : undefined,
-        ebitda: item.EBITDA ? { fmt: item.EBITDA.toString(), raw: item.EBITDA } : undefined,
-        netIncome: item.netIncome ? { fmt: item.netIncome.toString(), raw: item.netIncome } : undefined,
-        epsBasic: item.basicEPS ? { fmt: item.basicEPS.toString(), raw: item.basicEPS } : undefined,
-        epsDiluted: item.dilutedEPS ? { fmt: item.dilutedEPS.toString(), raw: item.dilutedEPS } : undefined,
-        interestExpense: item.interestExpenseNonOperating ? { fmt: item.interestExpenseNonOperating.toString(), raw: item.interestExpenseNonOperating } : undefined,
-        taxProvision: item.taxProvision ? { fmt: item.taxProvision.toString(), raw: item.taxProvision } : undefined,
-        researchAndDevelopment: item.researchAndDevelopment ? { fmt: item.researchAndDevelopment.toString(), raw: item.researchAndDevelopment } : undefined,
-        sellingGeneralAndAdministrative: item.sellingGeneralAndAdministration ? { fmt: item.sellingGeneralAndAdministration.toString(), raw: item.sellingGeneralAndAdministration } : undefined,
-        operatingExpense: item.operatingExpense ? { fmt: item.operatingExpense.toString(), raw: item.operatingExpense } : undefined,
-        otherOperatingExpenses: item.otherOperatingExpenses ? { fmt: item.otherOperatingExpenses.toString(), raw: item.otherOperatingExpenses } : undefined,
-        nonRecurringEvents: item.totalUnusualItems ? { fmt: item.totalUnusualItems.toString(), raw: item.totalUnusualItems } : undefined,
-        nonOperatingInterestIncome: item.interestIncomeNonOperating ? { fmt: item.interestIncomeNonOperating.toString(), raw: item.interestIncomeNonOperating } : undefined,
-        otherIncomeExpense: item.otherIncomeExpense ? { fmt: item.otherIncomeExpense.toString(), raw: item.otherIncomeExpense } : undefined
-      };
-
-      dataArray.push(periodData as any);
-    }
-
-    return isData;
+      annual: frequency === 'annual' ? (statements as any[]) : [],
+      quarterly: frequency === 'quarterly' ? (statements as any[]) : []
+    } as IncomeStatement;
   } catch (error) {
     if (error instanceof YahooFinanceError) {
       throw error;
@@ -437,15 +451,29 @@ async function fetchCashFlowStatement(
   frequency: 'annual' | 'quarterly' = 'annual'
 ): Promise<CashFlowStatement> {
   try {
-    const yf = new YahooFinance();
-    // Use a date far in past to get all available historical data
-    const result = await yf.fundamentalsTimeSeries(symbol, {
-      module: 'cash-flow',
-      type: frequency,
-      period1: new Date(2000, 0, 1) // January 1, 2000
-    });
+    const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
-    if (!result || result.length === 0) {
+    // quoteSummary cashflowStatementHistory stopped returning most fields in Nov 2024.
+    // Use fundamentalsTimeSeries instead.
+    const period1 = new Date();
+    period1.setFullYear(period1.getFullYear() - 6);
+    let raw: unknown;
+    try {
+      raw = await (yf as any).fundamentalsTimeSeries(symbol, { module: 'cash-flow', type: frequency, period1 });
+    } catch (err) {
+      if (err instanceof Error && err.constructor.name === 'FailedYahooValidationError') {
+        raw = (err as Error & { result: unknown }).result;
+      } else {
+        throw err;
+      }
+    }
+    const statements = Array.isArray(raw)
+      ? (raw as any[])
+          .filter((e) => e?.TYPE === 'CASH_FLOW' || e?.operatingCashFlow !== undefined)
+          .sort((a, b) => (b.date instanceof Date ? b.date.getTime() : b.date) - (a.date instanceof Date ? a.date.getTime() : a.date))
+      : [];
+
+    if (!Array.isArray(statements) || statements.length === 0) {
       throw new YahooFinanceError(
         `Cash flow statement data not available for ${symbol}`,
         YF_ERR_DATA_INCOMPLETE,
@@ -457,41 +485,11 @@ async function fetchCashFlowStatement(
       );
     }
 
-    // Convert fundamentalsTimeSeries format to legacy CashFlowStatement format
-    const cfData: CashFlowStatement = {
+    return {
       maxAge: 0,
-      annual: [],
-      quarterly: []
-    };
-
-    const dataArray = frequency === 'annual' ? cfData.annual : cfData.quarterly;
-
-    // Cast result to CashFlow type
-    for (const item of result as any) {
-      const periodData: Record<string, unknown> = {
-        endDate: {
-          fmt: item.date instanceof Date ? item.date.toISOString().split('T')[0] : '',
-          raw: item.date instanceof Date ? item.date.getTime() / 1000 : 0
-        },
-        totalCashFromOperatingActivities: item.operatingCashFlow ? { fmt: item.operatingCashFlow.toString(), raw: item.operatingCashFlow } : undefined,
-        capitalExpenditures: item.capitalExpenditure ? { fmt: item.capitalExpenditure.toString(), raw: item.capitalExpenditure } : undefined,
-        totalCashFromFinancingActivities: item.cashFlowFromContinuingFinancingActivities ? { fmt: item.cashFlowFromContinuingFinancingActivities.toString(), raw: item.cashFlowFromContinuingFinancingActivities } : undefined,
-        totalCashFromInvestingActivities: item.cashFlowFromContinuingInvestingActivities ? { fmt: item.cashFlowFromContinuingInvestingActivities.toString(), raw: item.cashFlowFromContinuingInvestingActivities } : undefined,
-        depreciation: item.depreciationAndAmortization ? { fmt: item.depreciationAndAmortization.toString(), raw: item.depreciationAndAmortization } : undefined,
-        dividendsPaid: item.commonStockDividendPaid ? { fmt: item.commonStockDividendPaid.toString(), raw: item.commonStockDividendPaid } : undefined,
-        stockRepurchases: item.repurchaseOfCapitalStock ? { fmt: item.repurchaseOfCapitalStock.toString(), raw: item.repurchaseOfCapitalStock } : undefined,
-        changeInCash: item.changesInCash ? { fmt: item.changesInCash.toString(), raw: item.changesInCash } : undefined,
-        freeCashFlow: item.freeCashFlow ? { fmt: item.freeCashFlow.toString(), raw: item.freeCashFlow } : undefined,
-        netBorrowings: item.netIssuancePaymentsOfDebt ? { fmt: item.netIssuancePaymentsOfDebt.toString(), raw: item.netIssuancePaymentsOfDebt } : undefined,
-        otherCashflowsFromInvestingActivities: item.netOtherInvestingChanges ? { fmt: item.netOtherInvestingChanges.toString(), raw: item.netOtherInvestingChanges } : undefined,
-        otherCashflowsFromFinancingActivities: item.netOtherFinancingCharges ? { fmt: item.netOtherFinancingCharges.toString(), raw: item.netOtherFinancingCharges } : undefined,
-        effectOfExchangeRateOnCash: item.effectOfExchangeRateChanges ? { fmt: item.effectOfExchangeRateChanges.toString(), raw: item.effectOfExchangeRateChanges } : undefined
-      };
-
-      dataArray.push(periodData as any);
-    }
-
-    return cfData;
+      annual: frequency === 'annual' ? (statements as any[]) : [],
+      quarterly: frequency === 'quarterly' ? (statements as any[]) : []
+    } as CashFlowStatement;
   } catch (error) {
     if (error instanceof YahooFinanceError) {
       throw error;

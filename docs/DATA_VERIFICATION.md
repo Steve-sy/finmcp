@@ -547,7 +547,7 @@ The following test suites verify data availability and quality:
 | Holders data | ✅ Major holders information | 85%+ |
 | Options data | ✅ Options chains with Greeks | 85%+ |
 | Financials data | ⚠️ Works but may encounter validation errors | 70%+ |
-| Crypto/Forex data | ⚠️ Tools exist but return placeholder data | 0% |
+| Crypto/Forex data | ⚠️ Best-effort via Yahoo quotes (availability varies) | Varies |
 
 ### Running Tests
 

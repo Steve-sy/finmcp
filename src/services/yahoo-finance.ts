@@ -65,11 +65,17 @@ type GetOptionsOptions = YahooFinanceOptions;
 
 type GetSummaryOptions = YahooFinanceOptions;
 
+type GetQuoteSummaryOptions = YahooFinanceOptions & {
+  modules: string[];
+};
+
 type GetCryptoOptions = YahooFinanceOptions;
 
 type GetForexOptions = YahooFinanceOptions;
 
-type GetTrendingOptions = YahooFinanceOptions;
+type GetTrendingOptions = YahooFinanceOptions & {
+  region?: string;
+};
 
 type ScreenerFilters = {
   field?: string;
@@ -131,7 +137,13 @@ export class YahooFinanceClient {
       const symbol = key.split(':')[1];
       try {
         const result = await this.yahooFinanceInstance.quote(symbol);
-        await this.cache.set(key, result, 60000);
+        // Avoid seeding the cache with partial/empty quote payloads which then return nulls
+        // until a force refresh is requested.
+        const validated = this.validateQuote(result);
+        const price = validated.price ?? (validated as unknown as PriceData);
+        if (price?.regularMarketPrice !== null && price?.regularMarketPrice !== undefined) {
+          await this.cache.set(key, validated, 60000);
+        }
       } catch {
       }
     });
@@ -316,7 +328,20 @@ export class YahooFinanceClient {
     return this.executeWithMiddleware(
       `quote:${symbol}`,
       async () => {
-        const result = await this.yahooFinanceInstance.quote(symbol, options?.fields ? { fields: options.fields } : undefined);
+        const queryOptions = options?.fields ? { fields: options.fields } : undefined;
+        let result;
+        try {
+          result = await this.yahooFinanceInstance.quote(symbol, queryOptions);
+        } catch (err) {
+          // FailedYahooValidationError: Yahoo returned data but it failed schema validation.
+          // Some symbols (e.g. BRK.B) return incomplete market-state fields during off-hours.
+          // Use the partial .result payload from the error rather than re-fetching.
+          if (err instanceof Error && err.constructor.name === 'FailedYahooValidationError') {
+            result = (err as Error & { result: unknown }).result;
+          } else {
+            throw err;
+          }
+        }
         const validated = this.validateQuote(result);
         return validated;
       },
@@ -401,24 +426,106 @@ export class YahooFinanceClient {
     return this.executeWithMiddleware(
       `earnings:${symbol}`,
       async () => {
-        const result = await this.yahooFinanceInstance.quoteSummary(symbol, { modules: ['earnings'] });
+        const result = await this.yahooFinanceInstance.quoteSummary(symbol, {
+          modules: ['earnings', 'earningsTrend', 'industryTrend'] as unknown as never[]
+        });
         const validated = this.validateEarnings(result);
-        return validated;
+        return this.normalizeEarningsResult(validated);
       },
       options
     );
+  }
+
+  private normalizeEarningsResult(result: unknown): EarningsResult {
+    // yahoo-finance2 quoteSummary returns a compound object keyed by module name.
+    // Our tooling expects a flattened EarningsResult shape.
+    const obj = (result ?? {}) as Record<string, unknown>;
+    const earnings = (obj.earnings ?? {}) as Record<string, unknown>;
+
+    const earningsChart =
+      (earnings.earningsChart as EarningsResult['earningsChart'] | undefined) ??
+      (obj.earningsChart as EarningsResult['earningsChart'] | undefined);
+
+    const financialsChart =
+      (earnings.financialsChart as EarningsResult['financialsChart'] | undefined) ??
+      (obj.financialsChart as EarningsResult['financialsChart'] | undefined);
+
+    const earningsTrendModule = (obj.earningsTrend ?? {}) as Record<string, unknown>;
+    const industryTrendModule = (obj.industryTrend ?? {}) as Record<string, unknown>;
+
+    const earningsTrend =
+      (Array.isArray(earningsTrendModule.trend) ? earningsTrendModule.trend : obj.earningsTrend) as
+        | EarningsResult['earningsTrend']
+        | undefined;
+
+    const industryTrend =
+      (Array.isArray(industryTrendModule.industryTrend) ? industryTrendModule.industryTrend : obj.industryTrend) as
+        | EarningsResult['industryTrend']
+        | undefined;
+
+    return {
+      earningsChart: earningsChart as EarningsResult['earningsChart'],
+      financialsChart: (financialsChart ?? { yearly: [], quarterly: [] }) as EarningsResult['financialsChart'],
+      earningsTrend: (earningsTrend ?? []) as EarningsResult['earningsTrend'],
+      industryTrend: (industryTrend ?? []) as EarningsResult['industryTrend']
+    };
   }
 
   getAnalysis(symbol: string, options?: GetAnalysisOptions): Promise<AnalysisResult> {
     return this.executeWithMiddleware(
       `analysis:${symbol}`,
       async () => {
-        const result = await this.yahooFinanceInstance.quoteSummary(symbol, { modules: ['earningsTrend', 'industryTrend'] });
+        const result = await this.yahooFinanceInstance.quoteSummary(symbol, {
+          modules: ['recommendationTrend', 'financialData', 'earningsTrend', 'industryTrend', 'price'] as unknown as never[]
+        });
         const validated = this.validateAnalysis(result);
-        return validated;
+        return this.normalizeAnalysisResult(symbol, validated);
       },
       options
     );
+  }
+
+  private normalizeAnalysisResult(symbol: string, result: unknown): AnalysisResult {
+    const obj = (result ?? {}) as Record<string, unknown>;
+    const recommendationTrend = (obj.recommendationTrend ?? {}) as Record<string, unknown>;
+    const trend = Array.isArray(recommendationTrend.trend) ? (recommendationTrend.trend as any[]) : [];
+
+    const latest = trend[0] ?? null;
+    const currentRatings = {
+      strongBuy: typeof latest?.strongBuy === 'number' ? latest.strongBuy : 0,
+      buy: typeof latest?.buy === 'number' ? latest.buy : 0,
+      hold: typeof latest?.hold === 'number' ? latest.hold : 0,
+      sell: typeof latest?.sell === 'number' ? latest.sell : 0,
+      strongSell: typeof latest?.strongSell === 'number' ? latest.strongSell : 0
+    };
+
+    const financialData = (obj.financialData ?? {}) as Record<string, unknown>;
+    const targetMean = (financialData.targetMeanPrice as any)?.raw ?? financialData.targetMeanPrice;
+    const targetPrice = typeof targetMean === 'number' ? targetMean : null;
+
+    const price = (obj.price ?? {}) as Record<string, unknown>;
+    const companyName = typeof price.shortName === 'string' ? price.shortName : symbol;
+
+    const recommendationKey = typeof financialData.recommendationKey === 'string' ? financialData.recommendationKey : '';
+    const currentOpinion = typeof financialData.recommendationMean === 'number'
+      ? String(financialData.recommendationMean)
+      : recommendationKey || 'unknown';
+
+    return {
+      earningsTrend: (obj.earningsTrend as any) ?? [],
+      industryTrend: (obj.industryTrend as any) ?? [],
+      analystOpinion: {
+        companyName,
+        currentRatings,
+        currentOpinion,
+        targetPrice,
+        recommendationKey
+      },
+      recommendationTrend: {
+        trend: trend as any,
+        maxAge: typeof recommendationTrend.maxAge === 'number' ? recommendationTrend.maxAge : 1
+      }
+    };
   }
 
   getNews(symbol: string, options?: GetNewsOptions): Promise<NewsResult> {
@@ -461,6 +568,28 @@ export class YahooFinanceClient {
     );
   }
 
+  getQuoteSummary(symbol: string, modules: string[], options?: YahooFinanceOptions): Promise<Record<string, unknown>> {
+    return this.executeWithMiddleware(
+      `quoteSummary:${symbol}:${modules.join(',')}`,
+      async () => {
+        const result = await this.yahooFinanceInstance.quoteSummary(symbol, { modules: modules as unknown as never[] });
+        if (result === null || typeof result !== 'object') {
+          throw new YahooFinanceError(
+            'Invalid quote summary result: not an object',
+            YF_ERR_API_CHANGED,
+            null,
+            false,
+            false,
+            { symbol, modules, result },
+            'Check API response structure'
+          );
+        }
+        return result as Record<string, unknown>;
+      },
+      options
+    );
+  }
+
   async getCryptoQuote(symbols: string[], options?: GetCryptoOptions): Promise<Record<string, CryptoQuoteResult>> {
     const results: Record<string, CryptoQuoteResult> = {};
     const errors: Record<string, Error> = {};
@@ -483,8 +612,15 @@ export class YahooFinanceClient {
     }
 
     if (Object.keys(errors).length > 0 && Object.keys(results).length === 0) {
+      const detail = Object.entries(errors)
+        .map(([symbol, err]) => {
+          const yfErr = err as unknown as YahooFinanceError;
+          const original = typeof yfErr?.context?.originalError === 'string' ? yfErr.context.originalError : undefined;
+          return `${symbol}: ${original || err.message}`;
+        })
+        .join('; ');
       throw new YahooFinanceError(
-        `Failed to fetch all crypto quotes: ${Object.keys(errors).join(', ')}`,
+        `Failed to fetch all crypto quotes: ${detail}`,
         YF_ERR_DATA_UNAVAILABLE,
         null,
         false,
@@ -519,8 +655,15 @@ export class YahooFinanceClient {
     }
 
     if (Object.keys(errors).length > 0 && Object.keys(results).length === 0) {
+      const detail = Object.entries(errors)
+        .map(([pair, err]) => {
+          const yfErr = err as unknown as YahooFinanceError;
+          const original = typeof yfErr?.context?.originalError === 'string' ? yfErr.context.originalError : undefined;
+          return `${pair}: ${original || err.message}`;
+        })
+        .join('; ');
       throw new YahooFinanceError(
-        `Failed to fetch all forex quotes: ${Object.keys(errors).join(', ')}`,
+        `Failed to fetch all forex quotes: ${detail}`,
         YF_ERR_DATA_UNAVAILABLE,
         null,
         false,
@@ -535,9 +678,10 @@ export class YahooFinanceClient {
 
   getTrending(options?: GetTrendingOptions): Promise<TrendingResult> {
     return this.executeWithMiddleware(
-      'trending',
+      `trending:${options?.region || 'US'}`,
       async () => {
-        const result = await this.yahooFinanceInstance.trendingSymbols('US');
+        const region = options?.region || 'US';
+        const result = await this.yahooFinanceInstance.trendingSymbols(region);
         const validated = this.validateTrending(result);
         return validated;
       },
@@ -581,7 +725,17 @@ export class YahooFinanceClient {
           try {
             const result = await fn();
 
-            if (useCache && options?.validate !== false) {
+            // Avoid caching "empty" quote payloads (missing critical price fields). These can happen
+            // transiently or when upstream returns partial structures, and they poison the cache.
+            const shouldSkipQuoteCache = (() => {
+              if (!cacheKey.startsWith('quote:')) {return false;}
+              if (result === null || typeof result !== 'object') {return true;}
+              const obj = result as any;
+              const price = obj.price ?? obj;
+              return price?.regularMarketPrice === null || price?.regularMarketPrice === undefined;
+            })();
+
+            if (useCache && options?.validate !== false && !shouldSkipQuoteCache) {
               await this.cache.set(cacheKey, result);
             }
 
@@ -666,6 +820,20 @@ export class YahooFinanceClient {
           message: 'Price object missing - initialized with empty structure',
           timestamp: new Date()
         });
+      }
+    }
+
+    // Some API responses include a `price` object but leave it empty, while the root contains
+    // the actual quote fields (regularMarketPrice, etc.). Prefer the root in that case.
+    if (quote.price !== undefined) {
+      const priceObj = quote.price as unknown as Record<string, unknown>;
+      const flat = result as Record<string, unknown>;
+      if (
+        (priceObj['regularMarketPrice'] === undefined || priceObj['regularMarketPrice'] === null) &&
+        flat['regularMarketPrice'] !== undefined &&
+        flat['regularMarketPrice'] !== null
+      ) {
+        quote.price = result as PriceData;
       }
     }
 

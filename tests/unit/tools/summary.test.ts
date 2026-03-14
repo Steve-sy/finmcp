@@ -8,6 +8,8 @@ describe('SummaryTools', () => {
   beforeEach(() => {
     mockClient = {
       getSummaryProfile: jest.fn(),
+      getCryptoQuote: jest.fn(),
+      getForexQuote: jest.fn(),
       getTrending: jest.fn(),
       screener: jest.fn()
     } as unknown as jest.Mocked<YahooFinanceClient>;
@@ -96,6 +98,56 @@ describe('SummaryTools', () => {
     };
 
     tools = new SummaryTools(mockClient, config);
+  });
+
+  describe('getCryptoQuote', () => {
+    test('should call client.getCryptoQuote for each symbol', async () => {
+      mockClient.getCryptoQuote.mockResolvedValue({
+        'BTC-USD': { regularMarketPrice: 1 } as any
+      } as any);
+
+      const result = await tools.getCryptoQuote({ symbols: ['BTC-USD'] });
+
+      expect(mockClient.getCryptoQuote).toHaveBeenCalled();
+      expect(result.summary.totalRequested).toBe(1);
+      expect(result.summary.totalReturned).toBe(1);
+      expect(result.results['BTC-USD']).toBeDefined();
+    });
+
+    test('should allow overriding currency by rewriting symbol suffix', async () => {
+      mockClient.getCryptoQuote.mockResolvedValue({
+        'BTC-AUD': { regularMarketPrice: 2 } as any
+      } as any);
+
+      const result = await tools.getCryptoQuote({ symbols: ['BTC-USD'], currency: 'AUD' });
+
+      expect(mockClient.getCryptoQuote).toHaveBeenCalledWith(['BTC-AUD'], { useCache: true });
+      expect(result.results['BTC-USD']).toBeDefined();
+    });
+  });
+
+  describe('getForexQuote', () => {
+    test('should normalize EURUSD to EURUSD=X', async () => {
+      mockClient.getForexQuote.mockResolvedValue({
+        'EURUSD=X': { regularMarketPrice: 1.1 } as any
+      } as any);
+
+      const result = await tools.getForexQuote({ pairs: ['EURUSD'] });
+
+      expect(mockClient.getForexQuote).toHaveBeenCalledWith(['EURUSD=X'], { useCache: true });
+      expect(result.results.EURUSD).toBeDefined();
+    });
+
+    test('should normalize EUR/USD to EURUSD=X', async () => {
+      mockClient.getForexQuote.mockResolvedValue({
+        'EURUSD=X': { regularMarketPrice: 1.1 } as any
+      } as any);
+
+      const result = await tools.getForexQuote({ pairs: ['EUR/USD'] });
+
+      expect(mockClient.getForexQuote).toHaveBeenCalledWith(['EURUSD=X'], { useCache: true });
+      expect(result.results['EUR/USD']).toBeDefined();
+    });
   });
 
   describe('getSummaryProfile', () => {

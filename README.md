@@ -1,4 +1,4 @@
-# Yahoo Finance MCP Server (cloud)
+# Yahoo Finance MCP Server V3 (cloud)
 
 > FinMCP production-grade cloud ready financial data infrastructure for AI assistants
 
@@ -15,8 +15,21 @@ Transforms unreliable financial APIs into dependable data sources with enterpris
 - ✅ Multi-strategy rate limiting (token bucket + adaptive + per-endpoint)
 - ✅ Data quality scoring with completeness and integrity validation
 - ✅ Comprehensive caching with graceful fallback
-- ✅ 13+ financial data tools covering stocks, crypto, and forex
+- ✅ 15 financial data tools covering stocks, options, crypto, and forex
 - ✅ Enterprise-grade testing (unit, integration, e2e, chaos)
+- ✅ Streaming HTTP transport for Railway / Docker / ChatGPT Desktop
+
+---
+
+## What's New in v3.0.0
+
+- **yahoo-finance2 v3 compatibility** — full migration from deprecated v2 API patterns to v3 response structures
+- **Financial statements fixed** — switched from broken `quoteSummary` modules to `fundamentalsTimeSeries` (Yahoo deprecated the old modules in Nov 2024)
+- **Options Greeks fixed** — delta, gamma, theta, vega now correctly calculated (fixed expiration date field name and implied volatility scale)
+- **Holders names fixed** — institution/fund holder names now populated (field renamed `holderName` → `organization` in v3)
+- **Streaming HTTP transport** — new `dist/http.js` entry point for remote access via Railway, Docker, or ChatGPT Desktop
+- **API key auth** — optional `YF_MCP_API_KEY` env var for protecting public deployments
+- **Graceful degradation** — `FailedYahooValidationError` partial data is used instead of hard failures for symbols like BRK.B
 
 ---
 

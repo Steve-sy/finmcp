@@ -5,8 +5,32 @@ import { DataQualityReporter } from '../utils/data-completion.js';
 import type { NewsItem, NewsResult } from '../types/yahoo-finance.js';
 import { InputValidator } from '../utils/security.js';
 
-const yahooFinance = new YahooFinance();
+// Prevent stdout notices (e.g. survey URLs) from corrupting the MCP JSON-RPC stream.
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 const NEWS_CACHE_TTL = 300000;
+
+async function fetchNewsViaYahooSearchEndpoint(symbol: string, count: number): Promise<NewsResult> {
+  const url = new URL('https://query2.finance.yahoo.com/v1/finance/search');
+  url.searchParams.set('q', symbol);
+  url.searchParams.set('newsCount', String(Math.max(count, 10)));
+  url.searchParams.set('quotesCount', '0');
+  url.searchParams.set('enableFuzzyQuery', 'false');
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      // Yahoo can be picky about default UA; set a browser-like value.
+      'User-Agent': 'Mozilla/5.0'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Yahoo search endpoint failed (${response.status})`);
+  }
+
+  const data = (await response.json()) as { news?: unknown };
+  const news = Array.isArray(data.news) ? (data.news as NewsItem[]) : [];
+  return { count: news.length, news: news.slice(0, count) };
+}
 
 class NewsToolCache {
   private cache: Map<string, { data: NewsResult; timestamp: number }>;
@@ -15,14 +39,14 @@ class NewsToolCache {
     this.cache = new Map();
   }
 
-  get(key: string): NewsResult | null {
+  get(key: string): { data: NewsResult; timestamp: number } | null {
     const entry = this.cache.get(key);
     if (!entry) {return null;}
     if (Date.now() - entry.timestamp > NEWS_CACHE_TTL) {
       this.cache.delete(key);
       return null;
     }
-    return entry.data;
+    return entry;
   }
 
   set(key: string, data: NewsResult): void {
@@ -77,36 +101,28 @@ function convertNewsItem(item: Record<string, unknown>): {
 
 async function fetchNews(symbol: string, count: number = 10): Promise<NewsResult> {
   try {
-    const result = await yahooFinance.quoteSummary(symbol, {
-      modules: ['news' as unknown as never]
-    });
-
-    if (!result) {
-      return { count: 0, news: [] };
-    }
-
-    if (!result.news) {
-      return { count: 0, news: [] };
-    }
-
-    const newsData = result.news as unknown;
-    if (typeof newsData === 'object' && newsData !== null && 'items' in newsData) {
-      const items = (newsData as { items: unknown[] }).items;
-      return {
-        count: items.length,
-        news: items.slice(0, count) as NewsItem[]
-      };
-    }
-
-    if (Array.isArray(newsData)) {
-      return {
-        count: newsData.length,
-        news: newsData.slice(0, count) as NewsItem[]
-      };
-    }
-
-    return { count: 0, news: [] };
+    // Prefer the underlying Yahoo endpoint directly.
+    // yahoo-finance2's search() is currently prone to noisy schema-validation logging which
+    // pollutes stderr and is confusing during MCP stdio runs.
+    return await fetchNewsViaYahooSearchEndpoint(symbol, count);
   } catch (error) {
+    // Fallback: some yahoo-finance2 builds expose a dedicated `news()` helper.
+    try {
+      const maybeNewsFn = (yahooFinance as unknown as { news?: (s: string, o?: unknown) => Promise<unknown> }).news;
+      if (typeof maybeNewsFn === 'function') {
+        const fallback = await maybeNewsFn(symbol, { count } as unknown);
+        if (Array.isArray(fallback)) {
+          return { count: fallback.length, news: fallback.slice(0, count) as NewsItem[] };
+        }
+        const newsData = (fallback as { news?: unknown } | null)?.news;
+        if (Array.isArray(newsData)) {
+          return { count: newsData.length, news: newsData.slice(0, count) as NewsItem[] };
+        }
+      }
+    } catch {
+      // Ignore fallback errors; we'll report the original error below.
+    }
+
     throw new YahooFinanceError(
       `Failed to fetch news for ${symbol}: ${error instanceof Error ? error.message : String(error)}`,
       YF_ERR_DATA_UNAVAILABLE,
@@ -143,7 +159,7 @@ async function getNewsData(
   const cached = cache.get(cacheKey);
 
   if (cached) {
-    const convertedNews = cached.news.map(convertNewsItem);
+    const convertedNews = cached.data.news.map(convertNewsItem);
     const filteredNews = requireRelatedTickers
       ? convertedNews.filter((item) => item.relatedTickers.length > 0)
       : convertedNews;
@@ -271,12 +287,13 @@ export async function getCompanyNewsTool(
   }
 
   const cacheKey = newsToolCache.generateCacheKey(symbol, limit, requireRelatedTickers);
-  const fromCache = newsToolCache.get(cacheKey) !== null;
+  const cachedEntry = newsToolCache.get(cacheKey);
+  const fromCache = cachedEntry !== null;
   const startTime = Date.now();
 
   const data = await getNewsData(symbol, limit, requireRelatedTickers, newsToolCache);
 
-  const dataAge = fromCache ? startTime - newsToolCache.generateCacheKey(symbol, limit, requireRelatedTickers).length : 0;
+  const dataAge = fromCache && cachedEntry ? startTime - cachedEntry.timestamp : 0;
 
   let filteredNews = data.news;
 

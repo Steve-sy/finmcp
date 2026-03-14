@@ -48,6 +48,15 @@ type Metrics = {
   startTime: number;
 };
 
+// Stdio MCP requires stdout to be reserved for JSON-RPC. Some dependencies (notably yahoo-finance2)
+// may log validation notices using console.log(), which would corrupt the protocol stream.
+// Redirect all non-error console output to stderr.
+const _stderr = console.error.bind(console);
+console.log = _stderr;
+console.info = _stderr;
+console.warn = _stderr;
+console.debug = _stderr;
+
 class MCPServer {
   private server!: Server;
   private config!: AppConfig;

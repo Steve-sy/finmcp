@@ -1,6 +1,6 @@
 {
   "name": "finmcp",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "description": "FinMCP - Yahoo Finance MCP server with resilience middleware (circuit breaker, rate limiting, retries, caching) and data quality validation",
   "type": "module",
   "main": "dist/index.js",

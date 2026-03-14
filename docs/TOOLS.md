@@ -18,7 +18,7 @@ Complete documentation for all MCP tools available in FinMCP.
 
 Real-time stock quotes with quality reporting.
 
-**Location:** [`src/tools/quotes.ts`](../src/tools/quotes.ts)
+**Location:** [`src/tools/summary.ts`](../src/tools/summary.ts)
 
 **Parameters:**
 ```typescript
@@ -533,7 +533,7 @@ Cryptocurrency prices.
 
 **Returns:** Quote data (see [Data Verification](DATA_VERIFICATION.md))
 
-**Status:** ⚠️ Returns placeholder data. See [Data Verification](DATA_VERIFICATION.md) for details and workarounds.
+**Status:** ⚠️ Best-effort. Uses Yahoo quote data; availability can vary by symbol/region and may be rate-limited upstream.
 
 ---
 
@@ -541,7 +541,7 @@ Cryptocurrency prices.
 
 Currency pair exchange rates.
 
-**Location:** [`src/tools/quotes.ts`](../src/tools/quotes.ts)
+**Location:** [`src/tools/summary.ts`](../src/tools/summary.ts)
 
 **Parameters:**
 ```typescript
@@ -550,9 +550,13 @@ Currency pair exchange rates.
 }
 ```
 
+**Notes:**
+- Common 6-letter pairs like `EURUSD` are normalized to Yahoo symbols like `EURUSD=X` internally.
+- `EUR/USD` is also accepted and normalized the same way.
+
 **Returns:** Forex data (see [Data Verification](DATA_VERIFICATION.md))
 
-**Status:** ⚠️ Returns placeholder data. See [Data Verification](DATA_VERIFICATION.md) for details and workarounds.
+**Status:** ⚠️ Best-effort. Uses Yahoo quote data; availability can vary by pair/region and may be rate-limited upstream.
 
 ---
 

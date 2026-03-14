@@ -2,7 +2,9 @@ import { z } from 'zod';
 
 const MAX_SYMBOL_LENGTH = 20;
 const MIN_SYMBOL_LENGTH = 1;
-const ALLOWED_SYMBOL_CHARS = /^[A-Z0-9\.\-\^]+$/;
+// Symbols are used both for equities (AAPL, BRK-B, ^GSPC) and for cross-asset quotes
+// (BTC-USD, EURUSD=X). Keep this tight to avoid injection-style payloads.
+const ALLOWED_SYMBOL_CHARS = /^[A-Z0-9.\-^=]+$/;
 const MAX_SYMBOLS_PER_REQUEST = 50;
 const MAX_STRING_LENGTH = 1000;
 const SAFE_NUMBER_MIN = -Number.MAX_VALUE;

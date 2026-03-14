@@ -198,12 +198,13 @@ class MCPTestClient {
   sendRequest(request) {
     return new Promise((resolve, reject) => {
       const id = request.id;
-      this.pendingRequests.set(id, { resolve, reject });
+      const pending = { resolve, reject, timeout: null };
+      this.pendingRequests.set(id, pending);
 
       const message = JSON.stringify(request) + '\n';
       this.serverProcess.stdin.write(message);
 
-      const timeout = setTimeout(() => {
+      pending.timeout = setTimeout(() => {
         this.pendingRequests.delete(id);
         reject(new Error(`Request timeout for ${request.method || 'unknown'}`));
       }, 30000);
@@ -211,6 +212,7 @@ class MCPTestClient {
   }
 
   sendNotification(notification) {
+    if (!this.serverProcess || !this.serverProcess.stdin) return;
     const message = JSON.stringify(notification) + '\n';
     this.serverProcess.stdin.write(message);
   }
@@ -224,7 +226,8 @@ class MCPTestClient {
         
         if (message.id && this.pendingRequests.has(message.id)) {
           const { resolve, reject } = this.pendingRequests.get(message.id);
-          clearTimeout(this.pendingRequests.get(message.id).timeout);
+          const pending = this.pendingRequests.get(message.id);
+          if (pending && pending.timeout) clearTimeout(pending.timeout);
           this.pendingRequests.delete(message.id);
           
           if (message.error) {
@@ -240,6 +243,7 @@ class MCPTestClient {
   }
 
   async disconnect() {
+    if (!this.serverProcess) return;
     console.log('\n👋 Disconnecting...');
     
     await this.sendNotification({
@@ -248,7 +252,11 @@ class MCPTestClient {
     });
 
     setTimeout(() => {
-      this.serverProcess.kill();
+      try {
+        this.serverProcess.kill();
+      } catch {
+        // ignore
+      }
     }, 500);
   }
 }
@@ -280,6 +288,15 @@ async function runTests() {
       });
     } catch (error) {
       console.error('❌ get_earnings test failed:', error.message);
+    }
+
+    try {
+      await client.callTool('get_news', {
+        symbol: 'AAPL',
+        count: 3
+      });
+    } catch (error) {
+      console.error('❌ get_news test failed:', error.message);
     }
 
     try {
