@@ -80,6 +80,16 @@ Or if running from source:
 }
 ```
 
+### ChatGPT Desktop Integration (Streaming HTTP)
+
+ChatGPT Desktop can connect to a remote MCP server over Streaming HTTP.
+
+1. Build: `npm run build` (Windows: use `npm.cmd run build` if PowerShell blocks `npm`)
+2. Start the HTTP server: `npm run start:http`
+3. Add an MCP server in ChatGPT Desktop pointing to: `http://127.0.0.1:3333/mcp`
+
+You can change the bind address/port/path with `YF_MCP_HOST`, `YF_MCP_PORT`, and `YF_MCP_PATH`.
+
 ### Usage with Other AI Tools
 
 **Cursor AI:**
@@ -252,6 +262,11 @@ npm run lint         # Code quality checks
 npm run typecheck     # TypeScript validation
 ```
 
+For quick manual smoke tests:
+
+- stdio: `node test-mcp-client.js`
+- HTTP: run `npm run start:http`, then `node test-http-client.js` (set `MCP_URL` to override the default URL)
+
 Test suites include:
 - Unit tests (95%+ coverage for core middleware)
 - Integration tests (full tool and resource workflows)
@@ -268,6 +283,7 @@ Test suites include:
 npm run dev         # Watch mode for development
 npm run build       # Compile TypeScript
 npm run start       # Start server
+npm run start:http  # Start server over MCP Streaming HTTP
 npm run test        # Run tests
 npm run test:watch   # Watch mode for tests
 npm run lint        # Run linter

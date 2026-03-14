@@ -94,4 +94,6 @@ master-prompt.md
 
 # Ai
 .claude/
+.codex/
+.claudeignore
 CLAUDE.md
