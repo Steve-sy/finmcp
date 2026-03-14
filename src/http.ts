@@ -37,6 +37,15 @@ async function main(): Promise<void> {
     try {
       // Basic routing: only serve MCP on the configured path.
       const url = new URL(req.url || '/', `http://${req.headers.host || host}`);
+
+      // Health check endpoint for Railway / Docker / load balancers.
+      if (url.pathname === '/health') {
+        res.statusCode = 200;
+        res.setHeader('content-type', 'text/plain; charset=utf-8');
+        res.end('ok');
+        return;
+      }
+
       if (url.pathname !== path) {
         res.statusCode = 404;
         res.setHeader('content-type', 'text/plain; charset=utf-8');
