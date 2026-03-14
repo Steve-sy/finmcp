@@ -53,6 +53,19 @@ async function main(): Promise<void> {
         return;
       }
 
+      // Optional API key auth. Set YF_MCP_API_KEY on the server to enable.
+      // Clients pass the key as a query param: /mcp?key=<secret>
+      const apiKey = process.env.YF_MCP_API_KEY;
+      if (apiKey) {
+        const provided = url.searchParams.get('key');
+        if (provided !== apiKey) {
+          res.statusCode = 401;
+          res.setHeader('content-type', 'text/plain; charset=utf-8');
+          res.end('Unauthorized');
+          return;
+        }
+      }
+
       // Let the MCP transport handle GET/POST, SSE, etc.
       await transport.handleRequest(req, res);
     } catch (err) {

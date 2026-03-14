@@ -31,15 +31,7 @@ Configuration is done through a `config.json` file in the project root. All sett
 
 ### Minimal Configuration
 
-For most use cases, start with this minimal config:
-
-```json
-{
-  "server": {
-    "transport": "stdio"
-  }
-}
-```
+For most use cases, no config file is needed at all — the server runs with sensible defaults. Create a `config.json` only to override specific values.
 
 ### Recommended Configuration
 
@@ -47,10 +39,6 @@ For production use:
 
 ```json
 {
-  "server": {
-    "transport": "stdio",
-    "logLevel": "info"
-  },
   "rateLimit": {
     "requestsPerMinute": 60,
     "requestsPerHour": 1500
@@ -413,39 +401,28 @@ Jitter prevents thundering herd problems:
 
 ---
 
-## Server Settings
+## Server / Transport Settings
 
-### Configuration Options
+Transport is **not** configured via `config.json` — it is selected by which binary you run:
 
-```json
-{
-  "server": {
-    "transport": "stdio",
-    "logLevel": "info"
-  }
-}
-```
+| Binary | Transport | Use case |
+|--------|-----------|----------|
+| `node dist/index.js` | stdio | Local Claude Desktop (default) |
+| `node dist/http.js` | Streaming HTTP | Remote access, Railway, Docker, ChatGPT Desktop |
 
-### Parameters
+### HTTP Transport Environment Variables
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `transport` | string | "stdio" | MCP transport protocol ("stdio" or "http") |
-| `logLevel` | string | "info" | Logging level ("error", "warn", "info", "debug") |
+When running `dist/http.js`, configure the server with env vars (not config file):
 
-### Transport Options
-
-**stdio** (default):
-- Standard MCP transport for Claude Desktop
-- Direct communication via stdin/stdout
-- Recommended for most use cases
-
-**http** (advanced):
-- HTTP transport for custom integrations
-- Requires additional setup
-- Not recommended for Claude Desktop
+| Env Var | Default | Description |
+|---------|---------|-------------|
+| `YF_MCP_HOST` | `0.0.0.0` | Bind address |
+| `YF_MCP_PORT` | `3333` | Port (also reads `PORT` for Railway/Render compatibility) |
+| `YF_MCP_PATH` | `/mcp` | URL path for the MCP endpoint |
 
 ### Log Levels
+
+Controlled via the `logging.level` config key or `NODE_ENV`:
 
 | Level | Use Case |
 |-------|-----------|
@@ -458,39 +435,44 @@ Jitter prevents thundering herd problems:
 
 ## Environment Variables
 
-Environment variables override config file settings:
+All app config env vars use the `YF_MCP_` prefix and map directly to config keys. They override values from `config.json`.
 
-| Variable | Format | Example |
-|----------|---------|---------|
-| `RATE_LIMIT_RPM` | number | `60` |
-| `RATE_LIMIT_RPH` | number | `1500` |
-| `CACHE_TTL_QUOTES` | number | `60000` |
-| `CACHE_MAX_SIZE` | number | `1000` |
-| `CIRCUIT_BREAKER_FAILURE_THRESHOLD` | number | `5` |
-| `SERVER_LOG_LEVEL` | string | `info` |
-| `SERVER_TRANSPORT` | string | `stdio` |
+| Variable | Type | Example | Config key |
+|----------|------|---------|------------|
+| `YF_MCP_RATE_LIMIT_REQUESTS_PER_MINUTE` | number | `60` | `rateLimit.requestsPerMinute` |
+| `YF_MCP_RATE_LIMIT_REQUESTS_PER_HOUR` | number | `1500` | `rateLimit.requestsPerHour` |
+| `YF_MCP_RATE_LIMIT_BURST_LIMIT` | number | `5` | `rateLimit.burstLimit` |
+| `YF_MCP_CACHE_TTL_QUOTES` | number | `60000` | `cache.ttlQuotes` |
+| `YF_MCP_CACHE_TTL_HISTORICAL` | number | `3600000` | `cache.ttlHistorical` |
+| `YF_MCP_CACHE_MAX_SIZE` | number | `1000` | `cache.maxCacheSize` |
+| `YF_MCP_CIRCUIT_BREAKER_FAILURE_THRESHOLD` | number | `5` | `circuitBreaker.failureThreshold` |
+| `YF_MCP_CIRCUIT_BREAKER_TIMEOUT` | number | `60000` | `circuitBreaker.timeout` |
+| `YF_MCP_RETRY_MAX_RETRIES` | number | `3` | `retry.maxRetries` |
+| `YF_MCP_SECURITY_ENABLED` | boolean | `true` | `security.enabled` |
+| `YF_MCP_SECURITY_MAX_SYMBOLS_PER_REQUEST` | number | `50` | `security.maxSymbolsPerRequest` |
+| `YF_MCP_CONFIG_PATH` | string | `./config.json` | path to config file |
 
 ### Example Usage
 
 **Linux/Mac:**
 ```bash
-export RATE_LIMIT_RPM=60
-export SERVER_LOG_LEVEL=debug
-npm start
+export YF_MCP_CACHE_TTL_QUOTES=30000
+export YF_MCP_RATE_LIMIT_REQUESTS_PER_MINUTE=120
+node dist/http.js
 ```
 
 **Windows (PowerShell):**
 ```powershell
-$env:RATE_LIMIT_RPM = 60
-$env:SERVER_LOG_LEVEL = "debug"
-npm start
+$env:YF_MCP_CACHE_TTL_QUOTES = 30000
+$env:YF_MCP_RATE_LIMIT_REQUESTS_PER_MINUTE = 120
+node dist/http.js
 ```
 
 **Windows (CMD):**
 ```cmd
-set RATE_LIMIT_RPM=60
-set SERVER_LOG_LEVEL=debug
-npm start
+set YF_MCP_CACHE_TTL_QUOTES=30000
+set YF_MCP_RATE_LIMIT_REQUESTS_PER_MINUTE=120
+node dist/http.js
 ```
 
 ---

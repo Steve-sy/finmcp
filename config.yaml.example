@@ -161,50 +161,19 @@ dataCompletion:
   # Recommended: true
   validateCompleteness: true
 
-# Server configuration
-server:
-  # Transport type: 'stdio' or 'sse'
-  # Recommended: 'stdio' for MCP
-  transport: stdio
-
-  # Server port (for SSE transport)
-  # Recommended: 3000-4000
-  port: 3000
-
-  # Server host
-  # Recommended: 'localhost' or '0.0.0.0'
-  host: localhost
-
-  # Logging level: 'debug', 'info', 'warn', 'error'
-  # Recommended: 'info'
-  logLevel: info
-
-  # Enable metrics collection
-  # Recommended: true for production
-  enableMetrics: true
-
-  # Port for metrics endpoint
-  # Recommended: 9090-9100
-  metricsPort: 9090
-
-# Global fallback configuration
-fallback:
-  # Enable fallback mechanisms globally
-  # Recommended: true
-  enabled: true
-
-  # Delay in ms before triggering fallback
-  # Recommended: 3000-10000
-  delay: 5000
+# Transport note: selected by which binary you run, not by config.
+#   node dist/index.js  = stdio (local Claude Desktop)
+#   node dist/http.js   = Streaming HTTP (remote/cloud)
+# HTTP server env vars: YF_MCP_HOST (default 0.0.0.0), YF_MCP_PORT (default 3333), YF_MCP_PATH (default /mcp)
 
 # Yahoo Finance API configuration
 yahooFinance:
   # Yahoo Finance API base URL
   baseUrl: https://query1.finance.yahoo.com
 
-  # Request timeout in milliseconds
-  # Recommended: 30000-60000
-  timeoutMs: 30000
+  # Request timeout in milliseconds (default: 10000)
+  # Recommended: 10000-30000
+  timeoutMs: 10000
 
   # User agent string for requests
   userAgent: Mozilla/5.0 (compatible; YFinanceMCP/1.0)

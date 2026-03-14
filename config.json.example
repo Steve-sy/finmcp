@@ -97,35 +97,13 @@
     "_comment_validateCompleteness": "Validate data completeness before returning. Recommended: true"
   },
 
-  "server": {
-    "_comment": "Server configuration",
-    "transport": "stdio",
-    "_comment_transport": "Transport type: 'stdio' or 'sse'. Recommended: 'stdio' for MCP",
-    "port": 3000,
-    "_comment_port": "Server port (for SSE transport). Recommended: 3000-4000",
-    "host": "localhost",
-    "_comment_host": "Server host. Recommended: 'localhost' or '0.0.0.0'",
-    "logLevel": "info",
-    "_comment_logLevel": "Logging level: 'debug', 'info', 'warn', 'error'. Recommended: 'info'",
-    "enableMetrics": true,
-    "_comment_enableMetrics": "Enable metrics collection. Recommended: true for production",
-    "metricsPort": 9090,
-    "_comment_metricsPort": "Port for metrics endpoint. Recommended: 9090-9100"
-  },
-
-  "fallback": {
-    "_comment": "Global fallback configuration",
-    "enabled": true,
-    "_comment_enabled": "Enable fallback mechanisms globally. Recommended: true",
-    "delay": 5000,
-    "_comment_delay": "Delay in ms before triggering fallback. Recommended: 3000-10000"
-  },
+  "_comment_transport": "Transport is selected by which binary you run — not by config: `node dist/index.js` = stdio (local Claude Desktop), `node dist/http.js` = Streaming HTTP (remote/cloud). HTTP server is configured via env vars: YF_MCP_HOST (default 0.0.0.0), YF_MCP_PORT (default 3333), YF_MCP_PATH (default /mcp).",
 
   "yahooFinance": {
     "_comment": "Yahoo Finance API configuration",
     "baseUrl": "https://query1.finance.yahoo.com",
     "_comment_baseUrl": "Yahoo Finance API base URL",
-    "timeoutMs": 30000,
+    "timeoutMs": 10000,
     "_comment_timeoutMs": "Request timeout in milliseconds. Recommended: 30000-60000",
     "userAgent": "Mozilla/5.0 (compatible; YFinanceMCP/1.0)",
     "_comment_userAgent": "User agent string for requests",

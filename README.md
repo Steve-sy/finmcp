@@ -79,6 +79,7 @@ Or if running from source:
   }
 }
 ```
+---
 
 ### Remote Access MCP (Claude Desktop + ChatGPT Desktop via HTTPS)
 
@@ -90,11 +91,15 @@ FinMCP can be deployed to the cloud/docker so you and your friends can connect f
 2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub repo → select your repo
 3. Railway auto-detects the Dockerfile and builds everything
 4. Go to **Settings → Networking → Generate Domain** to get your public HTTPS URL
-5. No environment variables needed — Railway injects `PORT` automatically
+5. (Recommended) In Railway → **Variables**, add `YF_MCP_API_KEY` with a strong random value
 
-Your MCP endpoint will be: `https://your-app.up.railway.app/mcp`
+Your MCP endpoint will be:
+- **Without auth:** `https://your-app.up.railway.app/mcp`
+- **With auth:** `https://your-app.up.railway.app/mcp?key=YOUR_SECRET`
 
-You can freely added to any Ai Desktop as MCP connector.
+**Share the full URL (with `?key=...`) with your friends — they paste it directly into Claude Desktop or ChatGPT Desktop as the MCP server URL. No other config needed.**
+
+---
 
 ### ChatGPT Desktop Integration (Local Streaming HTTP)
 
@@ -259,10 +264,6 @@ Create `config.json`:
     "failureThreshold": 5,
     "monitoringWindow": 60000,
     "successThreshold": 3
-  },
-  "server": {
-    "transport": "stdio",
-    "logLevel": "info"
   }
 }
 ```
