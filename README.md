@@ -1,73 +1,24 @@
-# Yahoo Finance MCP Server V3 (cloud)
+# Yahoo Finance MCP Server (Cloud)
 
-> FinMCP production-grade cloud ready financial data infrastructure for AI assistants
+Production-grade (Cloud) financial data infrastructure for AI assistants with enterprise-grade resilience, comprehensive data quality validation, and production-ready monitoring.
 
----
+## Installation
 
-## Overview
-
-Transforms unreliable financial APIs into dependable data sources with enterprise-grade resilience, comprehensive data quality validation, and production-ready monitoring.
-
-**Built for:** AI assistants, investment platforms, algorithmic trading systems, and financial research tools
-
-**Key Features:**
-- ✅ Circuit breaker pattern with automatic recovery
-- ✅ Multi-strategy rate limiting (token bucket + adaptive + per-endpoint)
-- ✅ Data quality scoring with completeness and integrity validation
-- ✅ Comprehensive caching with graceful fallback
-- ✅ 15 financial data tools covering stocks, options, crypto, and forex
-- ✅ Enterprise-grade testing (unit, integration, e2e, chaos)
-- ✅ Streaming HTTP transport for Railway / Docker / ChatGPT Desktop
-
----
-
-## What's New in v3.0.0
-
-- **yahoo-finance2 v3 compatibility** — full migration from deprecated v2 API patterns to v3 response structures
-- **Financial statements fixed** — switched from broken `quoteSummary` modules to `fundamentalsTimeSeries` (Yahoo deprecated the old modules in Nov 2024)
-- **Options Greeks fixed** — delta, gamma, theta, vega now correctly calculated (fixed expiration date field name and implied volatility scale)
-- **Holders names fixed** — institution/fund holder names now populated (field renamed `holderName` → `organization` in v3)
-- **Streaming HTTP transport** — new `dist/http.js` entry point for remote access via Railway, Docker, or ChatGPT Desktop
-- **API key auth** — optional `YF_MCP_API_KEY` env var for protecting public deployments
-- **Graceful degradation** — `FailedYahooValidationError` partial data is used instead of hard failures for symbols like BRK.B
-
----
+```bash
+npm i @mustafa.ramx/finmcp
+```
 
 ## Quick Start
-
-### Installation
-
-**Via npm (Recommended):**
-
-```bash
-npm install -g finmcp
-```
-
-**From source:**
-
-```bash
-# Clone and install
-git clone https://github.com/Steve-sy/finmcp.git
-cd finmcp
-npm install
-
-# Build TypeScript
-npm run build
-```
 
 ### Start Server
 
 ```bash
-# If installed globally via npm
 finmcp
-
-# Or if running from source
-npm start
 ```
 
 ### Claude Desktop Integration
 
-Add to `claude_desktop_config.json`:
+Add to your `claude_desktop_config.json`:
 
 ```json
 {
@@ -79,56 +30,9 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
-Or if running from source:
+### Other AI Tools
 
-```json
-{
-  "mcpServers": {
-    "finmcp": {
-      "command": "node",
-      "args": ["absolute:\\path\\to\\finmcp\\dist\\index.js"],
-      "cwd": "absolute:\\path\\to\\finmcp"
-    }
-  }
-}
-```
----
-
-### Remote Access MCP (Claude Desktop + ChatGPT Desktop via HTTPS)
-
-FinMCP can be deployed to the cloud/docker so you and your friends can connect from anywhere without running anything locally.
-
-**Deploy to Railway (free tier):**
-
-1. Fork/push this repo to GitHub
-2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub repo → select your repo
-3. Railway auto-detects the Dockerfile and builds everything
-4. Go to **Settings → Networking → Generate Domain** to get your public HTTPS URL
-5. (Recommended Auth) In Railway → **Variables**, add `YF_MCP_API_KEY` with a strong random value to protect your project
-
-Your MCP endpoint will be:
-- **Without auth:** `https://your-app.up.railway.app/mcp`
-- **With auth:** `https://your-app.up.railway.app/mcp?key=YOUR_SECRET`
-
-**Share the full URL (with `?key=...`) with your friends — they paste it directly into Claude Desktop or ChatGPT Desktop as the MCP server URL. No other config needed.**
-
----
-
-### ChatGPT Desktop Integration (Local Streaming HTTP)
-
-To run locally and connect ChatGPT Desktop on the same machine:
-
-1. Build: `npm run build` (Windows: use `npm.cmd run build` if PowerShell blocks `npm`)
-2. Start the HTTP server: `npm run start:http`
-3. Add an MCP server in ChatGPT Desktop pointing to: `http://127.0.0.1:3333/mcp`
-
-You can change the bind address/port/path with `YF_MCP_HOST`, `YF_MCP_PORT`, and `YF_MCP_PATH`.
-
-### Usage with Other AI Tools
-
-**Cursor AI:**
-
-Add to Cursor's MCP settings:
+**Cursor AI / Cline AI:**
 
 ```json
 {
@@ -140,56 +44,14 @@ Add to Cursor's MCP settings:
 }
 ```
 
-**Cline AI:**
+## Features
 
-Add to Cline's MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "finmcp": {
-      "command": "finmcp"
-    }
-  }
-}
-```
-
-**Custom Integration:**
-
-Use the MCP SDK to integrate with any AI assistant:
-
-```typescript
-import { Client } from '@modelcontextprotocol/sdk';
-
-const client = new Client({
-  name: 'your-app',
-  version: '1.0.0',
-});
-
-await client.connect({
-  command: 'finmcp',
-});
-
-// Use financial data tools
-const quote = await client.callTool({
-  name: 'get_quote',
-  arguments: { symbol: 'AAPL' }
-});
-```
-
----
-
-## Documentation
-
-| Document | Description |
-|----------|-------------|
-| [TOOLS.md](docs/TOOLS.md) | Complete reference for all 13+ MCP tools |
-| [USAGE_GUIDE.md](docs/USAGE_GUIDE.md) | Practical guide with examples and patterns |
-| [CONFIGURATION.md](docs/CONFIGURATION.md) | Detailed configuration guide with best practices |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Deep dive into resilience patterns and architecture |
-| [DATA_VERIFICATION.md](docs/DATA_VERIFICATION.md) | Verification of data availability and limitations |
-
----
+- **13+ Financial Data Tools**: Stocks, crypto, forex, company intelligence, market sentiment
+- **Circuit Breaker Pattern**: Automatic recovery from API failures
+- **Multi-Strategy Rate Limiting**: Token bucket + adaptive + per-endpoint limiting
+- **Data Quality Scoring**: Completeness and integrity validation
+- **Comprehensive Caching**: Graceful fallback with high cache hit ratio (70-90%)
+- **Enterprise Testing**: Unit, integration, e2e, and chaos tests
 
 ## Available Tools
 
@@ -217,51 +79,22 @@ const quote = await client.callTool({
 - `get_crypto_quote` - Cryptocurrency prices
 - `get_forex_quote` - Currency pair exchange rates
 
-**Note:** See [DATA_VERIFICATION.md](docs/DATA_VERIFICATION.md) for data availability status
+## Documentation
 
----
+For complete documentation including configuration, usage examples, architecture details, and best practices:
 
-## Quick Reference
+**[View Full Documentation on GitHub](https://github.com/Steve-sy/finmcp)**
 
-### What Works ✅
-
-- Real-time quotes (price, volume, market cap, etc.)
-- Historical OHLCV data with integrity validation
-- Company profiles and business information
-- Earnings data with surprise analysis
-- Analyst ratings and target prices
-- Company news with metadata
-- Options chains with Greeks
-- Major holders information
-- Trending symbols and stock screener
-
-### Known Issues ⚠️
-
-- **Financial Statements:** May encounter validation errors for some symbols
-  - See [DATA_VERIFICATION.md](docs/DATA_VERIFICATION.md) for workarounds
-
-- **Crypto/Forex:** Tools exist but return placeholder data
-  - See [DATA_VERIFICATION.md](docs/DATA_VERIFICATION.md) for alternatives
-
-### Performance
-
-| Metric | Value |
-|--------|-------|
-| Quote queries | 60 requests/minute (configurable) |
-| Batch operations | Up to 100 symbols per request |
-| Cache hit ratio | 70-90% for frequently accessed symbols |
-| Cold start time | <500ms |
-| Test coverage | 95%+ for core middleware |
-
----
+Documentation includes:
+- [Complete Tool Reference](https://github.com/Steve-sy/finmcp/blob/main/docs/TOOLS.md)
+- [Usage Guide with Examples](https://github.com/Steve-sy/finmcp/blob/main/docs/USAGE_GUIDE.md)
+- [Configuration Guide](https://github.com/Steve-sy/finmcp/blob/main/docs/CONFIGURATION.md)
+- [Architecture Details](https://github.com/Steve-sy/finmcp/blob/main/docs/ARCHITECTURE.md)
+- [Data Verification Status](https://github.com/Steve-sy/finmcp/blob/main/docs/DATA_VERIFICATION.md)
 
 ## Configuration
 
-For detailed configuration options, see [CONFIGURATION.md](docs/CONFIGURATION.md).
-
-### Quick Configuration
-
-Create `config.json`:
+Create a `config.json` file:
 
 ```json
 {
@@ -281,128 +114,25 @@ Create `config.json`:
 }
 ```
 
----
+For detailed configuration options, see [Configuration Guide](https://github.com/Steve-sy/finmcp/blob/main/docs/CONFIGURATION.md).
 
-## Testing
+## Performance
 
-```bash
-npm test              # All tests
-npm run test:coverage  # With coverage report
-npm run lint         # Code quality checks
-npm run typecheck     # TypeScript validation
-```
-
-For quick manual smoke tests:
-
-- stdio: `node test-mcp-client.js`
-- HTTP: run `npm run start:http`, then `node test-http-client.js` (set `MCP_URL` to override the default URL)
-
-Test suites include:
-- Unit tests (95%+ coverage for core middleware)
-- Integration tests (full tool and resource workflows)
-- End-to-end tests (complete user journeys)
-- Chaos tests (network failures, API changes, partial data)
-
----
-
-## Development
-
-### Scripts
-
-```bash
-npm run dev         # Watch mode for development
-npm run build       # Compile TypeScript
-npm run start       # Start server
-npm run start:http  # Start server over MCP Streaming HTTP
-npm run test        # Run tests
-npm run test:watch   # Watch mode for tests
-npm run lint        # Run linter
-npm run lint:fix    # Fix linting issues
-npm run typecheck   # Type checking
-```
-
-### Project Structure
-
-```
-src/
-├── config/          # Configuration management
-├── middleware/      # Rate limiting, caching, circuit breaker, retry
-├── prompts/         # Pre-built financial analysis prompts
-├── schemas/         # Zod validation schemas
-├── services/        # Yahoo Finance API client
-├── tools/           # MCP tool implementations (13+ tools)
-├── types/           # TypeScript type definitions
-├── utils/           # Data quality, formatting, security
-└── index.ts         # Server entry point
-```
-
-For architecture details, see [ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
----
-
-## Comparison
-
-| Feature | This Implementation | Typical Python MCP |
-|---------|-------------------|-------------------|
-| Circuit Breaker | ✅ Full 3-state implementation | ❌ None |
-| Rate Limiting | ✅ Token bucket + adaptive + per-endpoint | ⚠️ Simple fixed limit |
-| Retry Logic | ✅ Exponential backoff + jitter | ⚠️ Linear or none |
-| Data Quality | ✅ Completeness + integrity + recommendations | ❌ None |
-| Observability | ✅ Metrics + logging + stats | ⚠️ Basic logging |
-| Testing | ✅ Unit + integration + e2e + chaos | ⚠️ Unit only |
-| Type Safety | ✅ TypeScript compile-time checks | ❌ Runtime only |
-| Performance | ✅ <500ms cold start | ⚠️ 2-3s cold start |
-| Configuration | ✅ JSON/YAML with validation | ⚠️ Environment variables |
-| Security | ✅ Input validation + output sanitization | ❌ None |
-
----
-
-## Contributing
-
-Contributions welcome! Please ensure:
-
-1. TypeScript compilation passes (`npm run typecheck`)
-2. Linting passes (`npm run lint`)
-3. Tests added for new features (`npm test`)
-4. Documentation updated for API changes
-5. Chaos tests added for resilience features
-
----
+| Metric | Value |
+|--------|-------|
+| Quote queries | 60 requests/minute (configurable) |
+| Batch operations | Up to 100 symbols per request |
+| Cache hit ratio | 70-90% for frequently accessed symbols |
+| Cold start time | <500ms |
+| Test coverage | 95%+ for core middleware |
 
 ## License
 
 MIT
 
----
+## Links
 
-## Support
-
-- [Yahoo Finance](https://finance.yahoo.com/)
-- [MCP Protocol Documentation](https://modelcontextprotocol.io/)
-- [yahoo-finance2 Library](https://github.com/gadicc/yahoo-finance2)
-- [Issue Tracker](https://github.com/Steve-sy/finmcp/issues)
-
----
-
-## Documentation Index
-
-**Getting Started:**
-- [Quick Start Guide](docs/USAGE_GUIDE.md#getting-started)
-- [Installation](docs/USAGE_GUIDE.md#getting-started)
-- [Claude Desktop Setup](docs/USAGE_GUIDE.md#getting-started)
-
-**Using the Server:**
-- [Basic Usage Examples](docs/USAGE_GUIDE.md#basic-usage)
-- [Advanced Patterns](docs/USAGE_GUIDE.md#advanced-patterns)
-- [Real-World Use Cases](docs/USAGE_GUIDE.md#real-world-examples)
-
-**Reference:**
-- [All Tools](docs/TOOLS.md)
-- [Configuration Options](docs/CONFIGURATION.md)
-- [Architecture Details](docs/ARCHITECTURE.md)
-- [Data Verification](docs/DATA_VERIFICATION.md)
-
-**Best Practices:**
-- [Performance Optimization](docs/USAGE_GUIDE.md#best-practices)
-- [Error Handling](docs/USAGE_GUIDE.md#troubleshooting)
-- [Security Guidelines](docs/USAGE_GUIDE.md#best-practices)
+- [GitHub Repository](https://github.com/Steve-sy/finmcp)
+- [npm Package](https://www.npmjs.com/package/finmcp)
+- [MCP Protocol](https://modelcontextprotocol.io/)
+- [Report Issues](https://github.com/Steve-sy/finmcp/issues)

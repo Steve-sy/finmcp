@@ -1,4 +1,4 @@
-# Yahoo Finance MCP Server
+# Yahoo Finance MCP Server (Cloud)
 
 > Production-grade financial data infrastructure for AI assistants
 
@@ -27,8 +27,32 @@ Transforms unreliable financial APIs into dependable data sources with enterpris
 **Via npm (Recommended):**
 
 ```bash
-npm install -g finmcp
+npm install -g @mustafa.ramx/finmcp
 ```
+
+### Start Server
+
+```bash
+finmcp
+```
+
+### Streaming HTTP (Cloud/Docker)
+
+FinMCP supports MCP Streaming HTTP so you can deploy once (Docker/Railway/VPS) and connect from anywhere over HTTPS.
+
+1. Build + start HTTP server:
+
+```bash
+npm run build
+npm run start:http
+```
+
+2. Your MCP endpoint will be available at:
+
+- `http://127.0.0.1:3333/mcp` (local)
+- `https://<your-domain>/mcp` (cloud)
+
+Optional: protect public deployments with `YF_MCP_API_KEY` and connect using `...?key=YOUR_SECRET`.
 
 **From source:**
 
