@@ -1,6 +1,6 @@
-# Yahoo Finance MCP Server
+# Yahoo Finance MCP Server (cloud)
 
-> FinMCP production-grade financial data infrastructure for AI assistants
+> FinMCP production-grade cloud ready financial data infrastructure for AI assistants
 
 ---
 
@@ -80,9 +80,25 @@ Or if running from source:
 }
 ```
 
-### ChatGPT Desktop Integration (Streaming HTTP)
+### Remote Access MCP (Claude Desktop + ChatGPT Desktop via HTTPS)
 
-ChatGPT Desktop can connect to a remote MCP server over Streaming HTTP.
+FinMCP can be deployed to the cloud/docker so you and your friends can connect from anywhere without running anything locally.
+
+**Deploy to Railway (free tier):**
+
+1. Fork/push this repo to GitHub
+2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub repo → select your repo
+3. Railway auto-detects the Dockerfile and builds everything
+4. Go to **Settings → Networking → Generate Domain** to get your public HTTPS URL
+5. No environment variables needed — Railway injects `PORT` automatically
+
+Your MCP endpoint will be: `https://your-app.up.railway.app/mcp`
+
+You can freely added to any Ai Desktop as MCP connector.
+
+### ChatGPT Desktop Integration (Local Streaming HTTP)
+
+To run locally and connect ChatGPT Desktop on the same machine:
 
 1. Build: `npm run build` (Windows: use `npm.cmd run build` if PowerShell blocks `npm`)
 2. Start the HTTP server: `npm run start:http`
