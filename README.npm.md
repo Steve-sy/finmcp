@@ -4,7 +4,35 @@ Production-grade financial data infrastructure for AI assistants with enterprise
 
 ![FinMCP Demo](https://s13.gifyu.com/images/bmv8P.gif)
 
-## Installation
+
+### Deploy to the Cloud (Docker-based)
+
+FinMCP ships with a `Dockerfile` and is fully Docker-based, so it runs on any platform that supports containers — Railway, Render, Fly.io, DigitalOcean App Platform, a VPS, or anything else.
+
+**Easiest option — Railway (recommended for beginners):**
+
+1. Sign up at [railway.com](https://railway.com?referralCode=Wvt6V5) *(referral link — gives you free credits)*
+2. New Project → **Deploy from GitHub repo** → paste `https://github.com/Steve-sy/finmcp`
+3. Railway auto-detects the `Dockerfile` and builds + deploys automatically
+4. *(Optional)* Add `YF_MCP_API_KEY` in Railway's **Variables** tab to protect your endpoint
+5. Go to **Settings → Networking → Generate Domain** to get your public URL
+6. Your MCP endpoint is live at: `https://<your-app>.up.railway.app/mcp`
+
+**Other platforms (Render, Fly.io, VPS, etc.):**
+
+Any platform that can run a Docker container works. Point it at this repo, and set the start command to `node dist/http.js`. The server listens on the `PORT` environment variable (automatically injected by most platforms) and defaults to `3333`.
+
+Optional: protect public deployments with `YF_MCP_API_KEY` and connect using `...?key=YOUR_SECRET`.
+
+### Claude Desktop Integration (Cloud)
+
+Customize -> Connectors -> Add custom connector:
+
+Name: FinMCP
+
+Remote MCP Server URL: your cloud https url: https://<your-domain>/mcp
+
+## Local Installation
 
 ```bash
 npm install -g @mustafa.ramx/finmcp
@@ -18,31 +46,7 @@ npm install -g @mustafa.ramx/finmcp
 finmcp
 ```
 
-### Streaming HTTP (Cloud/Docker)
-
-FinMCP supports MCP Streaming HTTP so you can deploy once (Docker/Railway/VPS) and connect from anywhere over HTTPS.
-
-1. Build + start HTTP server:
-
-```bash
-npm run build
-npm run start:http
-```
-
-2. Your MCP endpoint will be available at:
-
-- `http://127.0.0.1:3333/mcp` (local)
-- `https://<your-domain>/mcp` (cloud)
-
-Optional: protect public deployments with `YF_MCP_API_KEY` and connect using `...?key=YOUR_SECRET`.
-
-### Claude Desktop Integration (Cloud)
-
-Customize -> Connectors -> Add custome connector:
-Name: FinMCP
-Remote MCP Server URL: Is your cloud https url: https://<your-domain>/mcp
-
-### Claude Desktop Integration (Local)
+### Claude Desktop Integration (Local — npm)
 
 Add to your `claude_desktop_config.json`:
 
@@ -55,6 +59,29 @@ Add to your `claude_desktop_config.json`:
   }
 }
 ```
+
+### Claude Desktop Integration (Local — Docker)
+
+If you prefer Docker over installing Node.js, first build the image:
+
+```bash
+docker build -t finmcp .
+```
+
+Then add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "finmcp": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "finmcp", "node", "dist/index.js"]
+    }
+  }
+}
+```
+
+> **Note:** ChatGPT Desktop MCP support may vary — check its documentation for custom connector configuration.
 
 ### Other AI Tools
 
