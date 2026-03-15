@@ -1,6 +1,6 @@
 {
   "name": "@mustafa.ramx/finmcp",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "FinMCP - Yahoo Finance MCP server (Cloud) with resilience middleware (circuit breaker, rate limiting, retries, caching) and data quality validation",
   "type": "module",
   "main": "dist/index.js",

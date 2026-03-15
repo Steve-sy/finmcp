@@ -5,7 +5,7 @@ Production-grade (Cloud) financial data infrastructure for AI assistants with en
 ## Installation
 
 ```bash
-npm i @mustafa.ramx/finmcp
+npm install -g @mustafa.ramx/finmcp
 ```
 
 ## Quick Start
@@ -15,6 +15,24 @@ npm i @mustafa.ramx/finmcp
 ```bash
 finmcp
 ```
+
+### Streaming HTTP (Cloud/Docker)
+
+FinMCP supports MCP Streaming HTTP so you can deploy once (Docker/Railway/VPS) and connect from anywhere over HTTPS.
+
+1. Build + start HTTP server:
+
+```bash
+npm run build
+npm run start:http
+```
+
+2. Your MCP endpoint will be available at:
+
+- `http://127.0.0.1:3333/mcp` (local)
+- `https://<your-domain>/mcp` (cloud)
+
+Optional: protect public deployments with `YF_MCP_API_KEY` and connect using `...?key=YOUR_SECRET`.
 
 ### Claude Desktop Integration
 
@@ -46,11 +64,13 @@ Add to your `claude_desktop_config.json`:
 
 ## Features
 
-- **13+ Financial Data Tools**: Stocks, crypto, forex, company intelligence, market sentiment
+- **15 Financial Data Tools**: Stocks, options, crypto, forex, company intelligence, market sentiment
 - **Circuit Breaker Pattern**: Automatic recovery from API failures
 - **Multi-Strategy Rate Limiting**: Token bucket + adaptive + per-endpoint limiting
 - **Data Quality Scoring**: Completeness and integrity validation
 - **Comprehensive Caching**: Graceful fallback with high cache hit ratio (70-90%)
+- **Streaming HTTP Transport**: Run locally or deploy to the cloud (Docker/Railway) for HTTPS access
+- **Optional API Key Auth**: Protect public deployments with `YF_MCP_API_KEY`
 - **Enterprise Testing**: Unit, integration, e2e, and chaos tests
 
 ## Available Tools
@@ -133,6 +153,6 @@ MIT
 ## Links
 
 - [GitHub Repository](https://github.com/Steve-sy/finmcp)
-- [npm Package](https://www.npmjs.com/package/finmcp)
+- [npm Package](https://www.npmjs.com/package/@mustafa.ramx/finmcp)
 - [MCP Protocol](https://modelcontextprotocol.io/)
 - [Report Issues](https://github.com/Steve-sy/finmcp/issues)
