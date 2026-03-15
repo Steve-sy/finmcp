@@ -2,6 +2,8 @@
 
 Production-grade (Cloud) financial data infrastructure for AI assistants with enterprise-grade resilience, comprehensive data quality validation, and production-ready monitoring.
 
+![FinMCP Demo](https://s13.gifyu.com/images/bmv8P.gif)
+
 ## Installation
 
 ```bash
@@ -34,7 +36,13 @@ npm run start:http
 
 Optional: protect public deployments with `YF_MCP_API_KEY` and connect using `...?key=YOUR_SECRET`.
 
-### Claude Desktop Integration
+### Claude Desktop Integration (Cloud)
+
+Customize -> Connectors -> Add custome connector:
+Name: FinMCP
+Remote MCP Server URL: Is your cloud https url: https://<your-domain>/mcp
+
+### Claude Desktop Integration (Local)
 
 Add to your `claude_desktop_config.json`:
 
