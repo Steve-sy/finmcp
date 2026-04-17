@@ -1,26 +1,102 @@
-name: Publish to npm
+name: Release
 
 on:
   push:
     tags:
       - "v*"
 
+permissions:
+  contents: write        # needed for README restore + GitHub Release
+  id-token: write        # required for npm Trusted Publishing
+
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write   # required for npm trusted publishing
 
     steps:
-      - uses: actions/checkout@v4
+      # --- Checkout ---
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      # --- Node Setup ---
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: "https://registry.npmjs.org"
+          cache: "npm"
 
-      - run: npm ci
-      - run: npm test
+      # --- Install & Validate ---
+      - name: Install dependencies
+        run: npm ci
 
-      - run: npm publish --provenance --access public
+      - name: Run linting
+        run: npm run lint --if-present
+
+      - name: Run type checking
+        run: npm run typecheck --if-present
+
+      - name: Run tests
+        run: npm test --if-present
+
+      # --- Build ---
+      - name: Build package
+        run: npm run build --if-present
+
+      # --- Prepare README for npm ---
+      - name: Prepare README for npm
+        run: npm run readme:npm --if-present
+
+      # --- Publish to npm (Trusted Publishing) ---
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+
+      # --- Extract version from tag ---
+      - name: Extract version tag
+        id: version
+        run: echo "TAG=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      # --- Docker Buildx ---
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # --- Docker Login (token required) ---
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # --- Docker Build & Push ---
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            mustafaramx/finmcp:latest
+            mustafaramx/finmcp:${{ steps.version.outputs.TAG }}
+
+      # --- GitHub Release ---
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref }}
+          name: Release ${{ steps.version.outputs.TAG }}
+          draft: false
+          prerelease: false
+
+      # --- Restore README for GitHub ---
+      - name: Restore README for GitHub
+        run: npm run readme:github --if-present
+
+      # --- Commit README restore ---
+      - name: Commit README restore
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "chore: restore GitHub README after release" || true
+          git push
